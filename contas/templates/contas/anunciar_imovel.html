@@ -1,0 +1,175 @@
+{% extends 'base.html' %}
+
+{% block title %}
+    {% if form.instance.pk %}Editar Imóvel{% else %}Anunciar Novo Imóvel{% endif %} - DOCELARMS
+{% endblock %}
+
+{% block content %}
+<div class="container my-5">
+    <div class="row justify-content-center">
+        <div class="col-lg-10">
+            <div class="card border-0 shadow-lg">
+                <div class="card-body p-5">
+                    <h2 class="card-title text-center fw-bold mb-4">
+                        {% if form.instance.pk %}Editar Anúncio{% else %}Anunciar Novo Imóvel{% endif %}
+                    </h2>
+
+                    <form method="POST" enctype="multipart/form-data" novalidate>
+                        {% csrf_token %}
+
+                        {% if form.non_field_errors %}
+                            <div class="alert alert-danger">
+                                {% for error in form.non_field_errors %}{{ error }}{% endfor %}
+                            </div>
+                        {% endif %}
+
+                        <div class="row g-3">
+                            <div class="col-md-4">
+                                <label class="form-label">{{ form.finalidade.label }}</label>
+                                {{ form.finalidade }}
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label">{{ form.imobiliaria.label }}</label>
+                                {{ form.imobiliaria }}
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label">{{ form.cidade.label }}</label>
+                                {{ form.cidade }}
+                            </div>
+
+                            <div class="col-md-4">
+                                <label class="form-label">{{ form.bairro.label }}</label>
+                                {{ form.bairro }}
+                            </div>
+
+                            <div class="col-md-8">
+                                <label class="form-label">{{ form.endereco.label }}</label>
+                                {{ form.endereco }}
+                            </div>
+                             <div class="col-md-12">
+                                <label class="form-label">{{ form.titulo.label }}</label>
+                                {{ form.titulo }}
+                            </div>
+
+
+                            <div class="col-12">
+                                <label class="form-label">{{ form.descricao.label }}</label>
+                                {{ form.descricao }}
+                            </div>
+
+                            <div class="col-md-3">
+                                <label class="form-label">{{ form.preco.label }}</label>
+                                {{ form.preco }}
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label">{{ form.telefone_contato.label }}</label>
+                                {{ form.telefone_contato }}
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label">{{ form.area.label }}</label>
+                                <div class="input-group">
+                                    {{ form.area }}
+                                    <span class="input-group-text">m²</span>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label">{{ form.quartos.label }}</label>
+                                {{ form.quartos }}
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label">{{ form.suites.label }}</label>
+                                {{ form.suites }}
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label">{{ form.banheiros.label }}</label>
+                                {{ form.banheiros }}
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label">{{ form.salas.label }}</label>
+                                {{ form.salas }}
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label">{{ form.cozinhas.label }}</label>
+                                {{ form.cozinhas }}
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label">{{ form.closets.label }}</label>
+                                {{ form.closets }}
+                            </div>
+
+                            <div class="col-md-6">
+                                <label class="form-label">{{ form.foto_principal.label }}</label>
+                                {{ form.foto_principal }}
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">{{ form.fotos_galeria.label }}</label>
+                                {{ form.fotos_galeria }}
+                            </div>
+                        </div>
+
+                        {% if form.instance.pk and form.instance.fotos.all %}
+                        <hr class="my-4">
+                        <h4 class="mb-3">Gerenciar Galeria de Fotos</h4>
+                        <div class="row">
+                            {% for foto in form.instance.fotos.all %}
+                            <div class="col-md-3 mb-3">
+                                <div class="card">
+                                    <img src="{{ foto.imagem.url }}" class="card-img-top" style="height: 120px; object-fit: cover;">
+                                    <div class="card-body text-center p-2">
+                                        <a href="{% url 'excluir_foto' foto.id %}" class="btn btn-sm btn-danger w-100">Excluir</a>
+                                    </div>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                        {% endif %}
+                        
+                        <button type="submit" class="btn btn-primary btn-lg w-100 mt-4">
+                            {% if form.instance.pk %}Salvar Alterações{% else %}Publicar Anúncio{% endif %}
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Encontra os campos de Cidade e Bairro no formulário
+        // O Django gera os IDs como 'id_nome_do_campo'
+        const cidadeSelect = document.querySelector('#id_cidade');
+        const bairroSelect = document.querySelector('#id_bairro');
+
+        // Adiciona um "ouvinte" que dispara uma ação sempre que o campo de cidade mudar
+        cidadeSelect.addEventListener('change', function() {
+            const cidadeId = this.value; // Pega o ID da cidade selecionada
+            
+            // Mostra uma mensagem de carregamento enquanto busca os bairros
+            bairroSelect.innerHTML = '<option value="">Carregando...</option>';
+
+            // Se o usuário selecionar "Selecione a cidade", limpa a lista de bairros
+            if (!cidadeId) {
+                bairroSelect.innerHTML = '<option value="">Selecione uma cidade primeiro</option>';
+                return;
+            }
+
+            // Faz a "pergunta" para o nosso assistente (API) no backend
+            fetch(`/api/bairros/?cidade_id=${cidadeId}`)
+                .then(response => response.json()) // Converte a resposta em JSON
+                .then(data => {
+                    // Limpa a lista de bairros e adiciona a primeira opção
+                    bairroSelect.innerHTML = '<option value="">Selecione o bairro</option>';
+                    
+                    // Para cada bairro recebido na resposta, cria uma nova opção e a adiciona na lista
+                    data.forEach(function(bairro) {
+                        const option = new Option(bairro.nome, bairro.id);
+                        bairroSelect.add(option);
+                    });
+                });
+        });
+    });
+</script>
+{% endblock %}

@@ -1,0 +1,27 @@
+{% extends 'base.html' %}
+
+{% block title %}Confirmar Exclusão - DOCELARMS{% endblock %}
+
+{% block content %}
+<div class="container my-5">
+    <div class="row justify-content-center">
+        <div class="col-lg-6">
+            <div class="card border-0 shadow-lg">
+                <div class="card-body p-5 text-center">
+                    <h2 class="card-title fw-bold mb-4">Confirmar Exclusão</h2>
+                    <p class="lead">Você tem certeza de que deseja excluir permanentemente o anúncio?</p>
+                    <h4>"{{ imovel.titulo }}"</h4>
+
+                    <form method="POST">
+                        {% csrf_token %}
+                        <div class="d-grid gap-2 d-md-flex justify-content-md-center mt-4">
+                            <button type="submit" class="btn btn-danger btn-lg">Sim, Excluir</button>
+                            <a href="{% url 'meus_imoveis' %}" class="btn btn-secondary btn-lg">Cancelar</a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

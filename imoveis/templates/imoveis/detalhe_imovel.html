@@ -1,0 +1,142 @@
+{% extends 'base.html' %}
+{% load humanize %}  {% load static %}
+
+{% block title %}{{ imovel.titulo }} - DOCELARMS{% endblock %}
+
+{% block content %}
+<div class="container my-5">
+    <div class="row g-5">
+        <div class="col-lg-8">
+            <h1 class="fw-bold mb-3">{{ imovel.titulo }}</h1>
+            <p class="text-muted mb-4">{{ imovel.endereco }}, {{ imovel.bairro.nome }} - {{ imovel.cidade.nome }}, {{ imovel.cidade.estado }}</p>
+
+            {% if imovel.foto_principal %}
+                <a href="{{ imovel.foto_principal.url }}" data-lightbox="galeria-imovel" data-title="{{ imovel.titulo }}">
+                    <img src="{{ imovel.foto_principal.url }}" class="img-fluid rounded shadow-sm mb-4" alt="{{ imovel.titulo }}">
+                </a>
+            {% endif %}
+
+            {% if imovel.fotos.all %}
+                <hr>
+                <h3 class="fw-bold mt-4">Galeria de Fotos</h3>
+                <div class="row row-cols-1 row-cols-sm-2 row-cols-md-3 g-3 mb-4">
+                    {% for foto in imovel.fotos.all %}
+                        <div class="col">
+                            <a href="{{ foto.imagem.url }}" data-lightbox="galeria-imovel" data-title="{{ imovel.titulo }}">
+                                <img src="{{ foto.imagem.url }}" class="img-fluid rounded shadow-sm gallery-thumbnail" alt="Galeria Imagem {{ forloop.counter }}">
+                            </a>
+                        </div>
+                    {% endfor %}
+                </div>
+            {% endif %}
+
+            <hr>
+            <h3 class="mt-4 mb-3">Descrição</h3>
+            <p class="lead">{{ imovel.descricao|linebreaksbr }}</p>
+        </div>
+
+        <div class="col-lg-4">
+            <div class="sticky-top" style="top: 100px;">
+                <div class="card border-0 shadow-lg mb-4">
+                    <div class="card-body p-4">
+                        <h4 class="card-title fw-bold mb-3">Detalhes</h4>
+                        <ul class="list-unstyled detail-list">
+                            <li class="d-flex justify-content-between align-items-center mb-2">
+                                <span><i class="fas fa-tag me-2"></i>Preço:</span>
+                                <span class="fw-bold text-primary fs-5">R$ {{ imovel.preco|floatformat:2|intcomma }}</span>
+                            </li>
+                            <li class="d-flex justify-content-between align-items-center mb-2">
+                                <span><i class="fas fa-map-marker-alt me-2"></i>Cidade:</span>
+                                <span>{{ imovel.cidade.nome }}, {{ imovel.cidade.estado }}</span>
+                            </li>
+                            <li class="d-flex justify-content-between align-items-center mb-2">
+                                <span><i class="fas fa-map-pin me-2"></i>Bairro:</span>
+                                <span>{{ imovel.bairro.nome }}</span>
+                            </li>
+                            <li class="d-flex justify-content-between align-items-center mb-2">
+                                <span><i class="fas fa-road me-2"></i>Endereço:</span>
+                                <span>{{ imovel.endereco }}</span>
+                            </li>
+                            <li class="d-flex justify-content-between align-items-center mb-2">
+                                <span><i class="fas fa-handshake me-2"></i>Finalidade:</span>
+                                <span>{{ imovel.get_finalidade_display }}</span>
+                            </li>
+                            <li class="d-flex justify-content-between align-items-center mb-2">
+                                <span><i class="fas fa-ruler-combined me-2"></i>Área:</span>
+                                <span>{{ imovel.area|floatformat:0 }} m²</span>
+                            </li>
+                            <li class="d-flex justify-content-between align-items-center mb-2">
+                                <span><i class="fas fa-bed me-2"></i>Quartos:</span>
+                                <span>{{ imovel.quartos }}</span>
+                            </li>
+                            <li class="d-flex justify-content-between align-items-center mb-2">
+                                <span><i class="fas fa-bath me-2"></i>Suítes:</span>
+                                <span>{{ imovel.suites }}</span>
+                            </li>
+                            <li class="d-flex justify-content-between align-items-center mb-2">
+                                <span><i class="fas fa-toilet me-2"></i>Banheiros:</span>
+                                <span>{{ imovel.banheiros }}</span>
+                            </li>
+                            <li class="d-flex justify-content-between align-items-center mb-2">
+                                <span><i class="fas fa-couch me-2"></i>Salas:</span>
+                                <span>{{ imovel.salas }}</span>
+                            </li>
+                            <li class="d-flex justify-content-between align-items-center mb-2">
+                                <span><i class="fas fa-utensils me-2"></i>Cozinhas:</span>
+                                <span>{{ imovel.cozinhas }}</span>
+                            </li>
+                            <li class="d-flex justify-content-between align-items-center mb-2">
+                                <span><i class="fas fa-door-closed me-2"></i>Closets:</span>
+                                <span>{{ imovel.closets }}</span>
+                            </li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div class="card border-0 shadow-lg mb-4">
+                    <div class="card-body p-4 text-center">
+                        <h5 class="card-title fw-bold mb-3">Anunciado por:</h5>
+                        
+                        {% if imovel.imobiliaria and imovel.imobiliaria.nome != 'Particular' %}
+                            <p class="mb-1 fs-5" style="color: var(--cor-primaria);">{{ imovel.imobiliaria.nome }}</p>
+                            {% if imovel.imobiliaria.telefone %}
+                                <p class="text-muted"><i class="fas fa-phone-alt me-1"></i> {{ imovel.imobiliaria.telefone }}</p>
+                            {% endif %}
+                        {% else %}
+                            <p class="mb-1 fs-5">PARTICULAR</p>
+                        {% endif %}
+                        
+                        {% if imovel.telefone_contato %}
+                            <p class="mb-0 text-muted">Telefone para contato: <span class="fw-bold">{{ imovel.telefone_contato }}</span></p>
+                        {% endif %}
+                        
+                        {% if imovel.telefone_contato %}
+                            <a href="tel:{{ imovel.telefone_contato }}" class="btn btn-primary btn-lg w-100 mt-3">
+                                <i class="bi bi-telephone-fill me-2"></i> Entrar em Contato
+                            </a>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+    .gallery-thumbnail {
+        height: 150px;
+        object-fit: cover;
+        width: 100%;
+        cursor: pointer; /* Adiciona o cursor de clique nas miniaturas */
+    }
+    .detail-list li {
+        padding-top: 0.75rem;
+        padding-bottom: 0.75rem;
+    }
+    .detail-list li span {
+        font-size: 1.05rem;
+    }
+</style>
+{% endblock %}

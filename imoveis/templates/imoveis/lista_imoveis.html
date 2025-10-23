@@ -1,0 +1,176 @@
+{% extends 'base.html' %}
+
+{% block title %}Encontre o Imóvel dos Seus Sonhos{% endblock %}
+
+{% block content %}
+
+<div class="container-fluid text-white d-flex align-items-center justify-content-center" style="background: linear-gradient(rgba(0,0,0,0.5), rgba(0,0,0,0.5)), url('https://images.unsplash.com/photo-1580587771525-78b9dba3b914?q=80&w=1974&auto=format&fit=crop') no-repeat center center; background-size: cover; min-height: 60vh;">
+    <div class="text-center">
+        <h1 class="display-3 fw-bold mb-4">A Chave para a Sua Nova Vida</h1>
+        
+        <div class="p-4 rounded-3" style="background-color: rgba(255,255,255,0.1); backdrop-filter: blur(10px);">
+            <form method="GET" action="" class="row g-3 align-items-center">
+                <div class="col-md">
+                    <select name="finalidade" class="form-select form-select-lg">
+                        <option value="">Comprar ou Alugar?</option>
+                        <option value="VENDA" {% if valores_filtro.finalidade == 'VENDA' %}selected{% endif %}>Comprar</option>
+                        <option value="ALUGUEL" {% if valores_filtro.finalidade == 'ALUGUEL' %}selected{% endif %}>Alugar</option>
+                    </select>
+                </div>
+                <div class="col-md">
+                    <select name="cidade" class="form-select form-select-lg">
+                        <option value="">Onde?</option>
+                        {% for cidade in cidades %}
+                            <option value="{{ cidade.id }}" {% if valores_filtro.cidade == cidade.id|stringformat:"s" %}selected{% endif %}>{{ cidade.nome }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-auto">
+                    <button type="submit" class="btn btn-primary btn-lg w-100">Buscar</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<div class="container mt-5">
+    <div class="row">
+
+        <div class="col-lg-3">
+            <div class="p-4 bg-white rounded shadow-sm sticky-top" style="top: 100px;">
+                <h4 class="mb-3">FILTRAR IMÓVEIS</h4>
+                <form method="GET" action="">
+                    <input type="hidden" name="finalidade" value="{{ valores_filtro.finalidade }}">
+                    <input type="hidden" name="cidade" value="{{ valores_filtro.cidade }}">
+                    <div class="mb-3">
+                        <label for="imobiliaria" class="form-label">Imobiliária</label>
+                        <select name="imobiliaria" class="form-select">
+                            <option value="">Todas</option>
+                            {% for imobiliaria in imobiliarias %}
+                                <option value="{{ imobiliaria.id }}" {% if valores_filtro.imobiliaria == imobiliaria.id|stringformat:"s" %}selected{% endif %}>{{ imobiliaria.nome }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="row g-2">
+                        <div class="col-6 mb-3">
+                            <label for="quartos" class="form-label">Quartos (mín.)</label>
+                            <input type="number" name="quartos" class="form-control" id="quartos" min="0" value="{{ valores_filtro.quartos }}">
+                        </div>
+                        <div class="col-6 mb-3">
+                            <label for="suites" class="form-label">Suítes (mín.)</label>
+                            <input type="number" name="suites" class="form-control" id="suites" min="0" value="{{ valores_filtro.suites }}">
+                        </div>
+                        <div class="col-6 mb-3">
+                            <label for="banheiros" class="form-label">Banheiros (mín.)</label>
+                            <input type="number" name="banheiros" class="form-control" id="banheiros" min="0" value="{{ valores_filtro.banheiros }}">
+                        </div>
+                         <div class="col-6 mb-3">
+                            <label for="salas" class="form-label">Salas (mín.)</label>
+                            <input type="number" name="salas" class="form-control" id="salas" min="0" value="{{ valores_filtro.salas }}">
+                        </div>
+                        <div class="col-6 mb-3">
+                            <label for="cozinhas" class="form-label">Cozinhas (mín.)</label>
+                            <input type="number" name="cozinhas" class="form-control" id="cozinhas" min="0" value="{{ valores_filtro.cozinhas }}">
+                        </div>
+                         <div class="col-6 mb-3">
+                            <label for="closets" class="form-label">Closets (mín.)</label>
+                            <input type="number" name="closets" class="form-control" id="closets" min="0" value="{{ valores_filtro.closets }}">
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label for="area" class="form-label">Área Mínima (m²)</label>
+                        <input type="number" name="area" class="form-control" id="area" min="0" value="{{ valores_filtro.area }}">
+                    </div>
+                    <div class="mb-3">
+                        <label for="preco_max" class="form-label">Preço Máximo (R$)</label>
+                        <input type="number" name="preco_max" class="form-control" id="preco_max" placeholder="Ex: 500000" value="{{ valores_filtro.preco_max }}">
+                    </div>
+                    <button type="submit" class="btn btn-primary w-100">Aplicar Filtros</button>
+                </form>
+            </div>
+        </div>
+
+        <div class="col-lg-9">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h3 class="mb-0">Imóveis para você</h3>
+                {% if imoveis.paginator.count > 0 %}
+                    <span class="text-muted"><small>Exibindo {{ imoveis.start_index }} - {{ imoveis.end_index }} de {{ imoveis.paginator.count }} resultados</small></span>
+                {% endif %}
+            </div>
+            
+            <div class="row row-cols-1 row-cols-md-3 row-cols-lg-5 g-4">
+                {% for imovel in imoveis %}
+                    <div class="col">
+                        <div class="card property-card h-100 {% if imovel.destaque %}card-destaque{% endif %}">
+                            <div class="position-relative">
+                                
+                                {% if imovel.destaque %}
+                                    <div class="position-absolute top-0 end-0 p-2 text-white" style="background-color: var(--cor-destaque); border-top-right-radius: 12px; z-index: 10;">
+                                        <i class="bi bi-star-fill"></i> Destaque
+                                    </div>
+                                {% endif %}
+                                
+                                <span class="tag">{{ imovel.get_finalidade_display }}</span>
+                                <a href="{% url 'detalhe_imovel' imovel.id %}">
+                                    {% if imovel.foto_principal %}
+                                        <img src="{{ imovel.foto_principal.url }}" class="card-img-top" style="height: 150px; object-fit: cover;" alt="{{ imovel.titulo }}">
+                                    {% else %}
+                                        <div class="bg-secondary text-white d-flex align-items-center justify-content-center" style="height: 150px;">Sem Foto</div>
+                                    {% endif %}
+                                </a>
+                            </div>
+                            <div class="card-body">
+                                <p class="text-muted mb-1"><small>{{ imovel.cidade.nome }}</small></p>
+                                <h5 class="card-title mb-2" style="font-size: 0.9rem;">{{ imovel.titulo|truncatechars:35 }}</h5>
+                                <p class="card-text fs-5 fw-bold mb-2" style="color: var(--cor-primaria);">R$ {{ imovel.preco|floatformat:2 }}</p>
+                                
+                                <div class="card-features border-top pt-2 mt-2" style="gap: 1rem; font-size: 0.8rem;">
+                                    <span title="Quartos"><i class="bi bi-door-open-fill"></i> {{ imovel.quartos }}</span>
+                                    <span title="Banheiros"><i class="bi bi-archive-fill"></i> {{ imovel.banheiros }}</span>
+                                    <span title="Área"><i class="bi bi-arrows-fullscreen"></i> {{ imovel.area }} m²</span>
+                                </div>
+                            </div>
+                        </div>
+                        </div>
+                {% empty %}
+                    <div class="col-12">
+                        <div class="alert alert-warning" role="alert">
+                            Nenhum imóvel encontrado com os filtros selecionados.
+                        </div>
+                    </div>
+                {% endfor %}
+            </div>
+
+            {% if imoveis.has_other_pages %}
+            <nav aria-label="Navegação de páginas" class="mt-5 d-flex justify-content-center">
+                <ul class="pagination">
+                    {% if imoveis.has_previous %}
+                        <li class="page-item">
+                            <a class="page-link" href="?{% for key, value in valores_filtro.items %}{% if key != 'page' and value %}{{ key }}={{ value }}&{% endif %}{% endfor %}page=1" aria-label="Primeira">&laquo;</a>
+                        </li>
+                        <li class="page-item">
+                            <a class="page-link" href="?{% for key, value in valores_filtro.items %}{% if key != 'page' and value %}{{ key }}={{ value }}&{% endif %}{% endfor %}page={{ imoveis.previous_page_number }}">Anterior</a>
+                        </li>
+                    {% endif %}
+
+                    <li class="page-item active" aria-current="page">
+                        <span class="page-link">Página {{ imoveis.number }} de {{ imoveis.paginator.num_pages }}</span>
+                    </li>
+
+                    {% if imoveis.has_next %}
+                        <li class="page-item">
+                            <a class="page-link" href="?{% for key, value in valores_filtro.items %}{% if key != 'page' and value %}{{ key }}={{ value }}&{% endif %}{% endfor %}page={{ imoveis.next_page_number }}">Próxima</a>
+                        </li>
+                        <li class="page-item">
+                            <a class="page-link" href="?{% for key, value in valores_filtro.items %}{% if key != 'page' and value %}{{ key }}={{ value }}&{% endif %}{% endfor %}page={{ imoveis.paginator.num_pages }}" aria-label="Última">&raquo;</a>
+                        </li>
+                    {% endif %}
+                </ul>
+            </nav>
+            {% endif %}
+
+        </div>
+    </div>
+</div>
+
+{% endblock %}
