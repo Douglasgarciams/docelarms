@@ -19,7 +19,7 @@ SECRET_KEY = os.environ.get('SECRET_KEY', 'django-insecure-mituc@yo-b49e!r=wdy^g
 DEBUG = os.environ.get('DJANGO_DEBUG') == 'True' # Reads from .env locally
 
 # --- ALLOWED_HOSTS CONFIGURATION FOR RENDER ---
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = ["docelarms.com.br", "www.docelarms.com.br"]
 RENDER_EXTERNAL_HOSTNAME = os.environ.get('RENDER_EXTERNAL_HOSTNAME')
 if RENDER_EXTERNAL_HOSTNAME:
     ALLOWED_HOSTS.append(RENDER_EXTERNAL_HOSTNAME)
