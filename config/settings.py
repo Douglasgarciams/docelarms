@@ -8,27 +8,20 @@ from pathlib import Path
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-# Quick-start development settings - unsuitable for production
-# See https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/
-
 # SECURITY WARNING: keep the secret key used in production secret!
-# Consider moving this to an environment variable in production
-SECRET_KEY = os.environ.get('SECRET_KEY', 'django-insecure-mituc@yo-b49e!r=wdy^g(9!w57ilg363s9v%4@95ee&$dr%2j') # Default for local dev
+SECRET_KEY = os.environ.get('SECRET_KEY', 'django-insecure-mituc@yo-b49e!r=wdy^g(9!w57ilg363s9v%4@95ee&$dr%2j')
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = os.environ.get('DJANGO_DEBUG') == 'True' # Reads from .env locally
+DEBUG = os.environ.get('DJANGO_DEBUG') == 'True'
 
-# --- ALLOWED_HOSTS CONFIGURATION FOR RENDER ---
+# ALLOWED_HOSTS CONFIGURATION FOR RENDER AND LOCAL
 ALLOWED_HOSTS = ["docelarms.com.br", "www.docelarms.com.br"]
 RENDER_EXTERNAL_HOSTNAME = os.environ.get('RENDER_EXTERNAL_HOSTNAME')
 if RENDER_EXTERNAL_HOSTNAME:
     ALLOWED_HOSTS.append(RENDER_EXTERNAL_HOSTNAME)
-# Add 'localhost' and '127.0.0.1' for local development if needed
 if DEBUG:
     ALLOWED_HOSTS.append('localhost')
     ALLOWED_HOSTS.append('127.0.0.1')
-# -----------------------------------------------
-
 
 # Application definition
 INSTALLED_APPS = [
@@ -37,7 +30,7 @@ INSTALLED_APPS = [
     'django.contrib.contenttypes',
     'django.contrib.sessions',
     'django.contrib.messages',
-    'whitenoise.runserver_nostatic', # Important for serving static files locally with WhiteNoise
+    'whitenoise.runserver_nostatic', 
     'django.contrib.staticfiles',
     'django.contrib.humanize',
     'storages',
@@ -47,9 +40,7 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
-    # --- WHITENOISE MIDDLEWARE ADDED ---
     'whitenoise.middleware.WhiteNoiseMiddleware',
-    # ----------------------------------
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
@@ -80,22 +71,15 @@ TEMPLATES = [
 
 WSGI_APPLICATION = 'config.wsgi.application'
 
-
 # Database
-# https://docs.djangoproject.com/en/5.2/ref/settings/#databases
-# --- DATABASE CONFIGURATION USING dj_database_url ---
 DATABASES = {
     'default': dj_database_url.config(
-        # Uses DATABASE_URL from environment if available, otherwise falls back to SQLite
         default=f'sqlite:///{BASE_DIR / "db.sqlite3"}',
-        conn_max_age=600 # Recommended for persistent connections
+        conn_max_age=600
     )
 }
-# ----------------------------------------------------
-
 
 # Password validation
-# https://docs.djangoproject.com/en/5.2/ref/settings/#auth-password-validators
 AUTH_PASSWORD_VALIDATORS = [
     {'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator',},
     {'NAME': 'django.contrib.auth.password_validation.MinimumLengthValidator',},
@@ -103,9 +87,7 @@ AUTH_PASSWORD_VALIDATORS = [
     {'NAME': 'django.contrib.auth.password_validation.NumericPasswordValidator',},
 ]
 
-
 # Internationalization
-# https://docs.djangoproject.com/en/5.2/topics/i18n/
 LANGUAGE_CODE = 'pt-br'
 TIME_ZONE = 'America/Campo_Grande'
 USE_I18N = True
@@ -113,32 +95,21 @@ USE_L10N = True
 USE_THOUSAND_SEPARATOR = True
 USE_TZ = True
 
-
-# Static files (CSS, JavaScript, Images)
-# https://docs.djangoproject.com/en/5.2/howto/static-files/
+# Static files (Configured for WhiteNoise)
 STATIC_URL = 'static/'
-# --- STATICFILES CONFIGURATION FOR WHITENOISE ---
-# This setting tells Django where to find your static files in development
-STATICFILES_DIRS = [BASE_DIR / 'static'] # Assuming you have a /static/ folder in your project root for global static files
-# This setting tells Django where to collect all static files for production
+STATICFILES_DIRS = [BASE_DIR / 'static'] 
 STATIC_ROOT = BASE_DIR / 'staticfiles'
-# This setting tells WhiteNoise how to handle static files efficiently
 STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
-# ---------------------------------------------
 
 # Default primary key field type
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
-# Configuração para arquivos de mídia (uploads dos usuários) - Remains the same
-MEDIA_URL = '/media/'
-MEDIA_ROOT = BASE_DIR / 'media'
-
-# Login/Logout URLs - Remains the same
+# Login/Logout URLs
 LOGIN_REDIRECT_URL = '/'
 LOGOUT_REDIRECT_URL = '/'
 LOGIN_URL = 'login'
 
-# Configuração de E-mail para Produção (Gmail com Senha de App) - Remains the same
+# Email Config
 EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
 EMAIL_HOST = 'smtp.gmail.com'
 EMAIL_PORT = 587
@@ -147,32 +118,27 @@ EMAIL_HOST_USER = os.environ.get('GMAIL_USER')
 EMAIL_HOST_PASSWORD = os.environ.get('GMAIL_APP_PASSWORD')
 DEFAULT_FROM_EMAIL = EMAIL_HOST_USER
 
-# --- Configurações do Cloudflare R2 para django-storages ---
-# Credenciais (Lidas do Ambiente)
+# --- Cloudflare R2 Settings ---
 AWS_ACCESS_KEY_ID = os.environ.get('CLOUDFLARE_R2_ACCESS_KEY_ID')
 AWS_SECRET_ACCESS_KEY = os.environ.get('CLOUDFLARE_R2_SECRET_ACCESS_KEY')
-
-# Detalhes do Bucket e Endpoint
-AWS_STORAGE_BUCKET_NAME = os.environ.get('CLOUDFLARE_R2_BUCKET_NAME')
-# --- CORREÇÃO AQUI ---
-# Lê a variável de ambiente correta para o Account ID
+AWS_STORAGE_BUCKET_NAME = os.environ.get('CLOUDFLARE_R2_BUCKET_NAME') 
 CLOUDFLARE_ACCOUNT_ID = os.environ.get('CLOUDFLARE_R2_ACCOUNT_ID') 
-# Constrói a URL usando a variável lida
 AWS_S3_ENDPOINT_URL = f"https://{CLOUDFLARE_ACCOUNT_ID}.r2.cloudflarestorage.com"
-# ---------------------
-
-# Configurações Adicionais da AWS/S3 (necessárias para R2 via Boto3)
 AWS_S3_REGION_NAME = 'auto' 
 AWS_S3_SIGNATURE_VERSION = 's3v4'
 AWS_S3_FILE_OVERWRITE = False 
 AWS_DEFAULT_ACL = None 
 AWS_QUERYSTRING_AUTH = False 
-
-# Define o backend de armazenamento padrão para arquivos de mídia
 DEFAULT_FILE_STORAGE = 'storages.backends.s3boto3.S3Boto3Storage'
+# -----------------------------
 
-# Ajuste a URL de mídia para apontar para o R2 
-# (Esta linha agora usará o AWS_S3_ENDPOINT_URL corrigido)
-MEDIA_URL = f"{AWS_S3_ENDPOINT_URL}/{AWS_STORAGE_BUCKET_NAME}/media/"
-MEDIA_ROOT = BASE_DIR / 'media' 
-# ----------------------------------------------------------------
+# --- MEDIA FILES CONFIGURATION (CONDITIONAL) ---
+if DEBUG:
+    # Desenvolvimento Local: Servir da pasta /media/ localmente
+    MEDIA_URL = '/media/'
+    MEDIA_ROOT = BASE_DIR / 'media'
+else:
+    # Produção (Render): Servir diretamente do R2
+    MEDIA_URL = f"{AWS_S3_ENDPOINT_URL}/{AWS_STORAGE_BUCKET_NAME}/media/"
+    MEDIA_ROOT = BASE_DIR / 'media' # Mantido para referência
+# ---------------------------------------------
