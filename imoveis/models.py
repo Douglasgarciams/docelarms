@@ -12,49 +12,54 @@ from django.conf import settings
 
 # --- Função de Marca d'Água (integrada aqui para simplificar) ---
 def apply_watermark_to_image(in_memory_file):
-    """
-    Aplica marca d'água a um arquivo de imagem em memória (InMemoryUploadedFile).
-    Retorna um novo InMemoryUploadedFile com a marca d'água.
-    """
+    print(f"--- Iniciando apply_watermark_to_image para: {getattr(in_memory_file, 'name', 'Nome não disponível')}")
     try:
+        # ... (código PIL existente para abrir, criar layer, etc.) ...
         img = Image.open(in_memory_file).convert("RGBA")
         txt_layer = Image.new("RGBA", img.size, (255, 255, 255, 0))
-
-        watermark_text = "DOCELARMS" # Seu texto
+        
+        watermark_text = "DOCELARMS" 
         font_path = os.path.join(settings.BASE_DIR, 'assets', 'fonts', 'Roboto-Regular.ttf')
         font_size = int(img.size[0] * 0.05)
-
+        
         if not os.path.exists(font_path):
-             print(f"ERRO: Arquivo de fonte não encontrado em {font_path}")
+             print(f"ERRO CRÍTICO: Arquivo de fonte NÃO ENCONTRADO em {font_path}") # Log mais claro
              in_memory_file.seek(0)
              return in_memory_file
 
         font = ImageFont.truetype(font_path, font_size)
         draw = ImageDraw.Draw(txt_layer)
-
-        text_bbox = draw.textbbox((0, 0), watermark_text, font=font)
-        text_width = text_bbox[2] - text_bbox[0]
-        text_height = text_bbox[3] - text_bbox[1]
-        x = (img.width - text_width) / 2
-        y = (img.height - text_height) / 2
-
-        draw.text((x, y), watermark_text, font=font, fill=(255, 255, 255, 128))
-
+        
+        # ... (código PIL para calcular posição e desenhar texto) ...
+        draw.text((x, y), watermark_text, font=font, fill=(255, 255, 255, 128)) 
+        
         watermarked_img = Image.alpha_composite(img, txt_layer).convert("RGB")
+        print("--- Marca d'água aplicada à imagem em memória.")
 
         buffer = BytesIO()
-        watermarked_img.save(buffer, format='JPEG', quality=85)
+        watermarked_img.save(buffer, format='JPEG', quality=85) 
         buffer.seek(0)
+        print(f"--- Imagem com marca d'água salva no buffer. Tamanho: {buffer.getbuffer().nbytes} bytes.")
+
+        # Gerando nome de arquivo único para evitar sobrescrita
+        original_name = getattr(in_memory_file, 'name', 'unknown_file')
+        name, ext = os.path.splitext(original_name)
+        new_filename = f"{name}_wm_{os.urandom(4).hex()}.jpg" # Adiciona hash aleatório
 
         new_image = InMemoryUploadedFile(
-            buffer, 'ImageField', f"{os.path.splitext(in_memory_file.name)[0]}_wm.jpg",
+            buffer, 'ImageField', new_filename, 
             'image/jpeg', buffer.getbuffer().nbytes, None
         )
+        print(f"--- Retornando novo InMemoryUploadedFile: {new_filename}, Tipo: {new_image.content_type}, Tamanho: {new_image.size}")
         return new_image
 
     except Exception as e:
-        print(f"Erro detalhado ao aplicar marca d'água: {e}")
-        in_memory_file.seek(0)
+        # Log mais detalhado do erro
+        import traceback
+        print(f"--- ERRO DETALHADO em apply_watermark_to_image: {e}")
+        traceback.print_exc() # Imprime o traceback completo do erro
+        in_memory_file.seek(0) 
+        print("--- Retornando arquivo original devido a erro.")
         return in_memory_file
 # ------------------------------------------------------------------------
 
