@@ -16,6 +16,7 @@ def lista_imoveis(request):
     finalidade = request.GET.get('finalidade')
     imobiliaria_id = request.GET.get('imobiliaria')
     cidade_id = request.GET.get('cidade')
+    bairro_id = request.GET.get('bairro')
     # ... (restante dos seus filtros)
     quartos_min = request.GET.get('quartos')
     suites_min = request.GET.get('suites')
@@ -32,6 +33,7 @@ def lista_imoveis(request):
         try: imobiliaria_selecionada = Imobiliaria.objects.get(id=imobiliaria_id)
         except Imobiliaria.DoesNotExist: imobiliaria_selecionada = None
     if cidade_id: imoveis_list = imoveis_list.filter(cidade__id=cidade_id)
+    if bairro_id: imoveis_list = imoveis_list.filter(bairro__id=bairro_id)
     if quartos_min: imoveis_list = imoveis_list.filter(quartos__gte=quartos_min)
     if suites_min: imoveis_list = imoveis_list.filter(suites__gte=suites_min)
     if banheiros_min: imoveis_list = imoveis_list.filter(banheiros__gte=banheiros_min)

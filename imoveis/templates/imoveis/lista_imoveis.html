@@ -9,23 +9,28 @@
         <h1 class="display-3 fw-bold mb-4">A Chave para a Sua Nova Vida</h1>
         
         <div class="p-4 rounded-3" style="background-color: rgba(255,255,255,0.1); backdrop-filter: blur(10px);">
-            <form method="GET" action="" class="row g-3 align-items-center">
-                <div class="col-md">
+            <form method="GET" action="" class="row g-2 align-items-center justify-content-center">
+                <div class="col-md-3">
                     <select name="finalidade" class="form-select form-select-lg">
                         <option value="">Comprar ou Alugar?</option>
                         <option value="VENDA" {% if valores_filtro.finalidade == 'VENDA' %}selected{% endif %}>Comprar</option>
                         <option value="ALUGUEL" {% if valores_filtro.finalidade == 'ALUGUEL' %}selected{% endif %}>Alugar</option>
                     </select>
                 </div>
-                <div class="col-md">
-                    <select name="cidade" class="form-select form-select-lg">
-                        <option value="">Onde?</option>
+                <div class="col-md-3">
+                    <select name="cidade" id="hero_cidade" class="form-select form-select-lg">
+                        <option value="">Cidade</option>
                         {% for cidade in cidades %}
                             <option value="{{ cidade.id }}" {% if valores_filtro.cidade == cidade.id|stringformat:"s" %}selected{% endif %}>{{ cidade.nome }}</option>
                         {% endfor %}
                     </select>
                 </div>
-                <div class="col-md-auto">
+                <div class="col-md-3">
+                    <select name="bairro" id="hero_bairro" class="form-select form-select-lg">
+                        <option value="">Bairro</option>
+                        </select>
+                </div>
+                <div class="col-md-2">
                     <button type="submit" class="btn btn-primary btn-lg w-100">Buscar</button>
                 </div>
             </form>
@@ -38,10 +43,34 @@
 
         <div class="col-lg-3">
             <div class="p-4 bg-white rounded shadow-sm sticky-top" style="top: 100px;">
-                <h4 class="mb-3">FILTRAR IMÓVEIS</h4>
+                <h4 class="mb-3">Filtro Avançado</h4>
                 <form method="GET" action="">
-                    <input type="hidden" name="finalidade" value="{{ valores_filtro.finalidade }}">
-                    <input type="hidden" name="cidade" value="{{ valores_filtro.cidade }}">
+                    <div class="mb-3">
+                        <label class="form-label">Finalidade</label>
+                        <select name="finalidade" class="form-select">
+                            <option value="">Todas</option>
+                            <option value="VENDA" {% if valores_filtro.finalidade == 'VENDA' %}selected{% endif %}>Venda</option>
+                            <option value="ALUGUEL" {% if valores_filtro.finalidade == 'ALUGUEL' %}selected{% endif %}>Aluguel</option>
+                        </select>
+                    </div>
+
+                     <div class="mb-3">
+                        <label class="form-label">Cidade</label>
+                        <select name="cidade" id="sidebar_cidade" class="form-select">
+                            <option value="">Todas as cidades</option>
+                            {% for cidade in cidades %}
+                                <option value="{{ cidade.id }}" {% if valores_filtro.cidade == cidade.id|stringformat:"s" %}selected{% endif %}>{{ cidade.nome }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">Bairro</label>
+                        <select name="bairro" id="sidebar_bairro" class="form-select">
+                            <option value="">Todos os bairros</option>
+                            </select>
+                    </div>
+
                     <div class="mb-3">
                         <label for="imobiliaria" class="form-label">Imobiliária</label>
                         <select name="imobiliaria" class="form-select">
@@ -103,13 +132,11 @@
                     <div class="col">
                         <div class="card property-card h-100 {% if imovel.destaque %}card-destaque{% endif %}">
                             <div class="position-relative">
-                                
                                 {% if imovel.destaque %}
                                     <div class="position-absolute top-0 end-0 p-2 text-white" style="background-color: var(--cor-destaque); border-top-right-radius: 12px; z-index: 10;">
                                         <i class="bi bi-star-fill"></i> Destaque
                                     </div>
                                 {% endif %}
-                                
                                 <span class="tag">{{ imovel.get_finalidade_display }}</span>
                                 <a href="{% url 'detalhe_imovel' imovel.id %}">
                                     {% if imovel.foto_principal %}
@@ -131,7 +158,7 @@
                                 </div>
                             </div>
                         </div>
-                        </div>
+                    </div>
                 {% empty %}
                     <div class="col-12">
                         <div class="alert alert-warning" role="alert">
@@ -173,4 +200,79 @@
     </div>
 </div>
 
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        
+        // Função genérica para configurar os dropdowns de cidade/bairro
+        function configurarDropdownBairros(idCidadeSelect, idBairroSelect) {
+            const cidadeSelect = document.getElementById(idCidadeSelect);
+            const bairroSelect = document.getElementById(idBairroSelect);
+            
+            // Se não encontrou os elementos na página, não faz nada
+            if (!cidadeSelect || !bairroSelect) return;
+
+            // Função para carregar os bairros
+            function carregarBairros(cidadeId, bairroSelecionadoId = null) {
+                if (!cidadeId) {
+                    bairroSelect.innerHTML = '<option value="">Bairro</option>';
+                    bairroSelect.disabled = true;
+                    return;
+                }
+
+                bairroSelect.disabled = false;
+                // Mantém o texto de carregamento visível apenas se for uma mudança manual
+                if (!bairroSelecionadoId) {
+                     bairroSelect.innerHTML = '<option value="">Carregando...</option>';
+                }
+
+                fetch(`/api/bairros/?cidade_id=${cidadeId}`)
+                    .then(response => response.json())
+                    .then(data => {
+                        bairroSelect.innerHTML = '<option value="">Bairro</option>';
+                        data.forEach(function(bairro) {
+                            // Cria a opção
+                            const option = new Option(bairro.nome, bairro.id);
+                            // Se este for o bairro que já estava selecionado (vindo do filtro), marca como selected
+                            if (bairro.id == bairroSelecionadoId) {
+                                option.selected = true;
+                            }
+                            bairroSelect.add(option);
+                        });
+                    });
+            }
+
+            // Evento de mudança na cidade
+            cidadeSelect.addEventListener('change', function() {
+                carregarBairros(this.value);
+            });
+
+            // Na carga inicial da página, verifica se já tem uma cidade selecionada (ex: veio de um filtro)
+            // e carrega os bairros correspondentes, mantendo o bairro selecionado se houver.
+            const cidadeInicial = cidadeSelect.value;
+            // Tenta pegar o valor inicial do bairro a partir de um atributo data ou do próprio valor se já estiver renderizado (depende de como o backend envia)
+            // Uma forma mais simples aqui é pegar o valor que o Django renderizou se possível, mas como estamos recarregando via JS, vamos passar o valor do filtro via template Django direto no JS.
+            
+            // Truque: pegamos o valor do bairro que veio do filtro (se houver)
+            let bairroInicial = null;
+            {% if valores_filtro.bairro %}
+                bairroInicial = "{{ valores_filtro.bairro }}";
+            {% endif %}
+
+            if (cidadeInicial) {
+                 carregarBairros(cidadeInicial, bairroInicial);
+            } else {
+                 bairroSelect.disabled = true; // Desabilita bairro se não tem cidade
+            }
+        }
+
+        // Configura para a barra de busca principal (Hero)
+        configurarDropdownBairros('hero_cidade', 'hero_bairro');
+
+        // Configura para a barra lateral (Sidebar)
+        configurarDropdownBairros('sidebar_cidade', 'sidebar_bairro');
+    });
+</script>
 {% endblock %}
