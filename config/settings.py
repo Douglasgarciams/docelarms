@@ -146,6 +146,7 @@ EMAIL_USE_TLS = True
 EMAIL_HOST_USER = os.environ.get('GMAIL_USER')
 EMAIL_HOST_PASSWORD = os.environ.get('GMAIL_APP_PASSWORD')
 DEFAULT_FROM_EMAIL = EMAIL_HOST_USER
+
 # --- Configurações do Cloudflare R2 para django-storages ---
 # Credenciais (Lidas do Ambiente)
 AWS_ACCESS_KEY_ID = os.environ.get('CLOUDFLARE_R2_ACCESS_KEY_ID')
@@ -153,24 +154,25 @@ AWS_SECRET_ACCESS_KEY = os.environ.get('CLOUDFLARE_R2_SECRET_ACCESS_KEY')
 
 # Detalhes do Bucket e Endpoint
 AWS_STORAGE_BUCKET_NAME = os.environ.get('CLOUDFLARE_R2_BUCKET_NAME')
-AWS_S3_ENDPOINT_URL = f"https://{os.environ.get('CLOUDFLARE_R2_ACCOUNT_ID')}.r2.cloudflarestorage.com"
+# --- CORREÇÃO AQUI ---
+# Lê a variável de ambiente correta para o Account ID
+CLOUDFLARE_ACCOUNT_ID = os.environ.get('CLOUDFLARE_R2_ACCOUNT_ID') 
+# Constrói a URL usando a variável lida
+AWS_S3_ENDPOINT_URL = f"https://{CLOUDFLARE_ACCOUNT_ID}.r2.cloudflarestorage.com"
+# ---------------------
 
 # Configurações Adicionais da AWS/S3 (necessárias para R2 via Boto3)
-AWS_S3_REGION_NAME = 'auto' # R2 não usa regiões da mesma forma que S3, 'auto' funciona
+AWS_S3_REGION_NAME = 'auto' 
 AWS_S3_SIGNATURE_VERSION = 's3v4'
-AWS_S3_FILE_OVERWRITE = False # Evita sobrescrever arquivos com o mesmo nome acidentalmente
-AWS_DEFAULT_ACL = None # R2 não usa ACLs do S3
-AWS_QUERYSTRING_AUTH = False # URLs públicas, controle de acesso via bucket/token
+AWS_S3_FILE_OVERWRITE = False 
+AWS_DEFAULT_ACL = None 
+AWS_QUERYSTRING_AUTH = False 
 
 # Define o backend de armazenamento padrão para arquivos de mídia
 DEFAULT_FILE_STORAGE = 'storages.backends.s3boto3.S3Boto3Storage'
 
-# (Opcional, mas recomendado) Define um backend para arquivos estáticos também (se quiser servi-los do R2)
-# STATICFILES_STORAGE = 'storages.backends.s3boto3.S3StaticStorage' 
-# STATIC_URL = f"{AWS_S3_ENDPOINT_URL}/{AWS_STORAGE_BUCKET_NAME}/static/"
-
-# Ajuste a URL de mídia para apontar para o R2 (se não usar domínio customizado)
+# Ajuste a URL de mídia para apontar para o R2 
+# (Esta linha agora usará o AWS_S3_ENDPOINT_URL corrigido)
 MEDIA_URL = f"{AWS_S3_ENDPOINT_URL}/{AWS_STORAGE_BUCKET_NAME}/media/"
-# O MEDIA_ROOT não é mais usado diretamente para salvar, mas é bom manter para referências internas
 MEDIA_ROOT = BASE_DIR / 'media' 
 # ----------------------------------------------------------------
