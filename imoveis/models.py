@@ -1,67 +1,7 @@
 # imoveis/models.py
 from django.db import models
 from django.contrib.auth.models import User
-
-# Importações necessárias para processar imagem em memória
-from PIL import Image, ImageDraw, ImageFont
-import os
-from io import BytesIO
-from django.core.files.uploadedfile import InMemoryUploadedFile
-from django.conf import settings
-
-
-# --- Função de Marca d'Água (integrada aqui para simplificar) ---
-def apply_watermark_to_image(in_memory_file):
-    print(f"--- Iniciando apply_watermark_to_image para: {getattr(in_memory_file, 'name', 'Nome não disponível')}")
-    try:
-        # ... (código PIL existente para abrir, criar layer, etc.) ...
-        img = Image.open(in_memory_file).convert("RGBA")
-        txt_layer = Image.new("RGBA", img.size, (255, 255, 255, 0))
-        
-        watermark_text = "DOCELARMS" 
-        font_path = os.path.join(settings.BASE_DIR, 'assets', 'fonts', 'Roboto-Regular.ttf')
-        font_size = int(img.size[0] * 0.05)
-        
-        if not os.path.exists(font_path):
-             print(f"ERRO CRÍTICO: Arquivo de fonte NÃO ENCONTRADO em {font_path}") # Log mais claro
-             in_memory_file.seek(0)
-             return in_memory_file
-
-        font = ImageFont.truetype(font_path, font_size)
-        draw = ImageDraw.Draw(txt_layer)
-        
-        # ... (código PIL para calcular posição e desenhar texto) ...
-        draw.text((x, y), watermark_text, font=font, fill=(255, 255, 255, 128)) 
-        
-        watermarked_img = Image.alpha_composite(img, txt_layer).convert("RGB")
-        print("--- Marca d'água aplicada à imagem em memória.")
-
-        buffer = BytesIO()
-        watermarked_img.save(buffer, format='JPEG', quality=85) 
-        buffer.seek(0)
-        print(f"--- Imagem com marca d'água salva no buffer. Tamanho: {buffer.getbuffer().nbytes} bytes.")
-
-        # Gerando nome de arquivo único para evitar sobrescrita
-        original_name = getattr(in_memory_file, 'name', 'unknown_file')
-        name, ext = os.path.splitext(original_name)
-        new_filename = f"{name}_wm_{os.urandom(4).hex()}.jpg" # Adiciona hash aleatório
-
-        new_image = InMemoryUploadedFile(
-            buffer, 'ImageField', new_filename, 
-            'image/jpeg', buffer.getbuffer().nbytes, None
-        )
-        print(f"--- Retornando novo InMemoryUploadedFile: {new_filename}, Tipo: {new_image.content_type}, Tamanho: {new_image.size}")
-        return new_image
-
-    except Exception as e:
-        # Log mais detalhado do erro
-        import traceback
-        print(f"--- ERRO DETALHADO em apply_watermark_to_image: {e}")
-        traceback.print_exc() # Imprime o traceback completo do erro
-        in_memory_file.seek(0) 
-        print("--- Retornando arquivo original devido a erro.")
-        return in_memory_file
-# ------------------------------------------------------------------------
+# REMOVEMOS AS IMPORTAÇÕES DO PILOW, IO, OS, ETC. RELACIONADAS À MARCA D'ÁGUA
 
 class Cidade(models.Model):
     nome = models.CharField(max_length=100)
@@ -114,12 +54,8 @@ class Imovel(models.Model):
     aprovado = models.BooleanField(default=False, verbose_name="Aprovado?")
 
     proprietario = models.ForeignKey(User, on_delete=models.CASCADE)
-    cidade = models.ForeignKey(Cidade, on_delete=models.SET_NULL, null=True, verbose_name="Cidade") # Continua obrigatório no form
-
-    # --- CORREÇÃO APLICADA AQUI ---
+    cidade = models.ForeignKey(Cidade, on_delete=models.SET_NULL, null=True, verbose_name="Cidade")
     bairro = models.ForeignKey(Bairro, on_delete=models.SET_NULL, null=True, blank=True, verbose_name="Bairro")
-    # -------------------------------
-
     imobiliaria = models.ForeignKey(Imobiliaria, on_delete=models.SET_NULL, null=True, blank=True, verbose_name="Imobiliária/Anunciante")
 
     titulo = models.CharField(max_length=100, verbose_name="Título do Anúncio")
@@ -141,22 +77,7 @@ class Imovel(models.Model):
     def __str__(self):
         return self.titulo
 
-    def save(self, *args, **kwargs):
-        process_watermark = False
-        if self.foto_principal and hasattr(self.foto_principal.file, 'content_type'):
-             if self.pk:
-                 try:
-                     old_instance = Imovel.objects.get(pk=self.pk)
-                     if old_instance.foto_principal != self.foto_principal:
-                         process_watermark = True
-                 except Imovel.DoesNotExist: process_watermark = True
-             else: process_watermark = True
-
-        if process_watermark:
-             print("Processando marca d'água para Foto Principal...")
-             self.foto_principal = apply_watermark_to_image(self.foto_principal.file)
-
-        super().save(*args, **kwargs)
+    # MÉTODO SAVE CUSTOMIZADO REMOVIDO
 
 class Foto(models.Model):
     imovel = models.ForeignKey(Imovel, related_name='fotos', on_delete=models.CASCADE)
@@ -164,13 +85,4 @@ class Foto(models.Model):
 
     def __str__(self): return f"Foto de {self.imovel.titulo}"
 
-    def save(self, *args, **kwargs):
-        process_watermark = False
-        if self.imagem and hasattr(self.imagem.file, 'content_type'):
-             if not self.pk: process_watermark = True
-
-        if process_watermark:
-             print("Processando marca d'água para Foto da Galeria...")
-             self.imagem = apply_watermark_to_image(self.imagem.file)
-
-        super().save(*args, **kwargs)
+    # MÉTODO SAVE CUSTOMIZADO REMOVIDO
