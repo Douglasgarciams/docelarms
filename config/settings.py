@@ -145,7 +145,7 @@ DEFAULT_FILE_STORAGE = "storages.backends.s3boto3.S3Boto3Storage"
 AWS_LOCATION = ""
 
 # URL pública para servir os arquivos
-MEDIA_URL = f"https://{AWS_S3_CUSTOM_DOMAIN}"
+MEDIA_URL = f"https://{AWS_S3_CUSTOM_DOMAIN}/"
 MEDIA_ROOT = BASE_DIR / "media"  # apenas referência local (não usada em produção)
 AWS_DEFAULT_ACL = "public-read"
 
