@@ -118,7 +118,7 @@ EMAIL_HOST_USER = os.environ.get('GMAIL_USER')
 EMAIL_HOST_PASSWORD = os.environ.get('GMAIL_APP_PASSWORD')
 DEFAULT_FROM_EMAIL = EMAIL_HOST_USER
 
-# --- Configurações do Cloudflare R2 para django-storages (VERSÃO FINAL CORRIGIDA) ---
+# --- Configurações do Cloudflare R2 (VERSÃO SIMPLIFICADA E DIRETA) ---
 
 # Credenciais (Lidas do Ambiente)
 AWS_ACCESS_KEY_ID = os.environ.get('CLOUDFLARE_R2_ACCESS_KEY_ID')
@@ -126,14 +126,13 @@ AWS_SECRET_ACCESS_KEY = os.environ.get('CLOUDFLARE_R2_SECRET_ACCESS_KEY')
 AWS_STORAGE_BUCKET_NAME = os.environ.get('CLOUDFLARE_R2_BUCKET_NAME')
 CLOUDFLARE_ACCOUNT_ID = os.environ.get('CLOUDFLARE_R2_ACCOUNT_ID')
 
-# 1. ENDPOINT DA API S3 (Para Boto3 fazer o upload)
+# 1. ENDPOINT DA API S3 (Para Boto3 fazer o upload E exibir)
 AWS_S3_ENDPOINT_URL = f"https://{CLOUDFLARE_ACCOUNT_ID}.r2.cloudflarestorage.com"
 
-# 2. DOMÍNIO PÚBLICO (Para o navegador exibir a imagem)
-R2_PUBLIC_DOMAIN = 'pub-b06bb61e03d3434889f102b1a56ce95d.r2.dev' # Sua URL Pública
-AWS_S3_CUSTOM_DOMAIN = R2_PUBLIC_DOMAIN # Informa ao django-storages
+# 2. REMOVEMOS O DOMÍNIO CUSTOMIZADO PARA SIMPLICAR
+AWS_S3_CUSTOM_DOMAIN = None 
 
-# Configurações Adicionais da AWS/S3
+# Configurações Adicionais
 AWS_S3_REGION_NAME = 'auto'
 AWS_S3_SIGNATURE_VERSION = 's3v4'
 AWS_S3_FILE_OVERWRITE = False
@@ -143,19 +142,17 @@ AWS_QUERYSTRING_AUTH = False
 # Define o backend de armazenamento padrão para arquivos de mídia
 DEFAULT_FILE_STORAGE = 'storages.backends.s3boto3.S3Boto3Storage'
 
-# --- Lógica de MEDIA_URL ATUALIZADA ---
+# 3. DEFINE A PASTA-RAIZ DENTRO DO BUCKET
+AWS_LOCATION = 'media'
+
+# 4. CONFIGURAÇÃO DE MEDIA_URL
 if DEBUG:
-    # Desenvolvimento Local
+    # Desenvolvimento Local: Servir da pasta /media/ local
     MEDIA_URL = '/media/'
     MEDIA_ROOT = BASE_DIR / 'media'
 else:
-    # Produção (Render): Usa a URL Pública do R2
-    
-    # *** LINHA CRUCIAL ADICIONADA AQUI ***
-    # Diz ao django-storages para salvar todos os uploads de mídia na pasta /media/ do bucket
-    AWS_LOCATION = 'media'
-    
-    # A URL agora será: https://<dominio_publico>/media/
-    MEDIA_URL = f"https://{AWS_S3_CUSTOM_DOMAIN}/{AWS_LOCATION}/"
-    MEDIA_ROOT = BASE_DIR / 'media'
+    # Produção (Render): Gera a URL completa
+    # Ex: https://<account_id>.r2.cloudflarestorage.com/docelarms/media/
+    MEDIA_URL = f"{AWS_S3_ENDPOINT_URL}/{AWS_STORAGE_BUCKET_NAME}/{AWS_LOCATION}/"
+    MEDIA_ROOT = BASE_DIR / 'media' # Django ainda precisa disso
 # ----------------------------------------------------------------
