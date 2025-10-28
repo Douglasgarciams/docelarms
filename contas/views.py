@@ -6,7 +6,7 @@ from .forms import CustomUserCreationForm, UserUpdateForm, CustomPasswordChangeF
 from imoveis.models import Imovel, Foto
 from imoveis.forms import ImovelForm
 from django.contrib.auth import update_session_auth_hash
-# Importações manuais de Boto3 REMOVIDAS
+import traceback # Importar para o traceback
 
 # --- View de Cadastro (Original) ---
 def cadastro(request):
@@ -34,44 +34,189 @@ def meus_imoveis(request):
     }
     return render(request, 'contas/meus_imoveis.html', contexto)
 
-# --- View "Anunciar Imóvel" (Original/Simples) ---
+# --- View "Anunciar Imóvel" (COM DEBUG ADICIONADO) ---
 @login_required
 def anunciar_imovel(request):
+    # --- DEBUG INICIAL ---
+    print(f"--- Iniciando anunciar_imovel ---")
+    print(f"Método da Requisição: {request.method}")
+    # --- FIM DEBUG ---
+
     if request.method == 'POST':
         form = ImovelForm(request.POST, request.FILES)
+
+        # --- DEBUG FORM POST ---
+        print("--- DEBUG FORM POST (Anunciar) ---")
+        print(f"Formulário instanciado com POST e FILES.")
+        # Limitando o print do request.POST para não poluir muito o log
+        print(f"request.POST (primeiros 500 chars): {str(request.POST)[:500]}") 
+        print(f"request.FILES: {request.FILES}") # MUITO IMPORTANTE: Mostra os arquivos enviados
+        print(f"Form is_bound: {form.is_bound}")
+        # --- FIM DEBUG ---
+
         if form.is_valid():
-            imovel = form.save(commit=False)
-            imovel.proprietario = request.user
-            imovel.save() # django-storages (agora ativo) cuida do upload
-            
-            fotos_galeria = request.FILES.getlist('fotos_galeria')
-            for f in fotos_galeria:
-                Foto.objects.create(imovel=imovel, imagem=f) # django-storages cuida do upload
-            
-            messages.success(request, 'Seu imóvel foi enviado para análise!')
-            return redirect('meus_imoveis')
-    else:
+            # --- DEBUG FORM VÁLIDO ---
+            print("Formulário (Anunciar) é VÁLIDO.")
+            # Limitando cleaned_data para evitar logs excessivos com descrição
+            cleaned_data_preview = {k: v for k, v in form.cleaned_data.items() if k != 'descricao'}
+            print(f"Dados limpos (sem descricao): {cleaned_data_preview}")
+            print(f"Foto principal nos dados limpos: {form.cleaned_data.get('foto_principal')}")
+            # --- FIM DEBUG ---
+            try:
+                # --- DEBUG ANTES DO SAVE ---
+                print("Tentando salvar o formulário (form.save(commit=False))...")
+                # --- FIM DEBUG ---
+                
+                imovel = form.save(commit=False)
+                imovel.proprietario = request.user
+                
+                # --- DEBUG ANTES DO SAVE FINAL ---
+                print(f"Instância Imovel criada: {imovel}")
+                print(f"Foto principal ANTES do imovel.save(): {imovel.foto_principal.name if imovel.foto_principal else 'None'}")
+                print("Executando imovel.save()...")
+                # --- FIM DEBUG ---
+
+                imovel.save() # A MÁGICA (ou falha) do upload acontece aqui
+
+                # --- DEBUG DEPOIS DO SAVE ---
+                print("imovel.save() EXECUTADO com sucesso.")
+                print(f"Imóvel salvo ID: {imovel.id}")
+                # Recarrega do banco para ter certeza
+                imovel_recarregado = Imovel.objects.get(id=imovel.id) 
+                print(f"Foto principal NO BANCO após save: {imovel_recarregado.foto_principal.name if imovel_recarregado.foto_principal else 'None'}")
+                if imovel_recarregado.foto_principal:
+                    print(f"URL da foto principal gerada: {imovel_recarregado.foto_principal.url}")
+                # --- FIM DEBUG ---
+
+                fotos_galeria = request.FILES.getlist('fotos_galeria')
+                print(f"Processando {len(fotos_galeria)} fotos da galeria...") # DEBUG
+                for f in fotos_galeria:
+                    try:
+                        foto_obj = Foto.objects.create(imovel=imovel, imagem=f) 
+                        print(f"Foto da galeria salva: {foto_obj.imagem.name}, URL: {foto_obj.imagem.url}") # DEBUG
+                    except Exception as e_galeria:
+                        print(f"!!! ERRO ao salvar foto da galeria: {f.name} !!!") # DEBUG
+                        print(e_galeria) # DEBUG
+                
+                messages.success(request, 'Seu imóvel foi enviado para análise!')
+                print("Redirecionando para meus_imoveis...") # DEBUG
+                return redirect('meus_imoveis')
+
+            except Exception as e: # Captura QUALQUER erro durante o save
+                 # --- DEBUG ERRO NO SAVE ---
+                print(f"!!! ERRO CRÍTICO DURANTE O SAVE (anunciar_imovel) !!!")
+                print(f"Tipo do erro: {type(e)}")
+                print(f"Erro: {e}")
+                traceback.print_exc() # Imprime o traceback completo do erro
+                 # --- FIM DEBUG ---
+                messages.error(request, f'Ocorreu um erro inesperado ao salvar: {e}')
+                # Não redireciona
+
+        else: # Se form.is_valid() for False
+             # --- DEBUG FORM INVÁLIDO ---
+            print("Formulário (Anunciar) NÃO é válido.")
+            print("Erros do formulário:")
+            # Usar as_text para logs mais limpos que as_json
+            print(form.errors.as_text()) 
+             # --- FIM DEBUG ---
+            messages.error(request, 'Por favor, corrija os erros no formulário.')
+
+    else: # Se for GET
         form = ImovelForm()
+        print("Renderizando formulário (Anunciar) para GET.") # DEBUG
+    
+    # Renderiza o template em caso de GET ou erro no POST
+    print("Renderizando template anunciar_imovel.html (Anunciar)...") # DEBUG
     return render(request, 'contas/anunciar_imovel.html', {'form': form})
 
-# --- View "Editar Imóvel" (Original/Simples) ---
+# --- View "Editar Imóvel" (COM DEBUG ADICIONADO) ---
 @login_required
 def editar_imovel(request, imovel_id):
     imovel = get_object_or_404(Imovel, id=imovel_id, proprietario=request.user)
+    
+    # --- DEBUG INICIAL ---
+    print(f"--- Iniciando editar_imovel para ID: {imovel_id} ---")
+    print(f"Método da Requisição: {request.method}")
+    # --- FIM DEBUG ---
+
     if request.method == 'POST':
         form = ImovelForm(request.POST, request.FILES, instance=imovel)
+        
+        # --- DEBUG FORM POST ---
+        print("--- DEBUG FORM POST (Editar) ---")
+        print(f"Formulário instanciado com POST e FILES.")
+        # Limitando o print do request.POST
+        print(f"request.POST (primeiros 500 chars): {str(request.POST)[:500]}") 
+        print(f"request.FILES: {request.FILES}") # MUITO IMPORTANTE: Mostra os arquivos enviados
+        print(f"Form is_bound: {form.is_bound}")
+        # --- FIM DEBUG ---
+
         if form.is_valid():
-            form.save() # django-storages cuida do upload
-            
-            fotos_galeria = request.FILES.getlist('fotos_galeria')
-            for f in fotos_galeria:
-                Foto.objects.create(imovel=imovel, imagem=f) # django-storages cuida do upload
-            
-            messages.success(request, 'Imóvel atualizado com sucesso!')
-            return redirect('meus_imoveis')
-    else:
+            # --- DEBUG FORM VÁLIDO ---
+            print("Formulário (Editar) é VÁLIDO.")
+            # Limitando cleaned_data
+            cleaned_data_preview = {k: v for k, v in form.cleaned_data.items() if k != 'descricao'}
+            print(f"Dados limpos (sem descricao): {cleaned_data_preview}")
+            print(f"Foto principal nos dados limpos: {form.cleaned_data.get('foto_principal')}")
+            # --- FIM DEBUG ---
+            try:
+                # --- DEBUG ANTES DO SAVE ---
+                print("Tentando salvar o formulário (form.save())...")
+                # --- FIM DEBUG ---
+
+                imovel_salvo = form.save() # A MÁGICA (ou falha) do upload acontece aqui
+
+                # --- DEBUG DEPOIS DO SAVE ---
+                print("form.save() EXECUTADO com sucesso.")
+                print(f"Imóvel salvo ID: {imovel_salvo.id}")
+                # Recarrega do banco
+                imovel_recarregado = Imovel.objects.get(id=imovel_salvo.id) 
+                print(f"Foto principal NO BANCO após save: {imovel_recarregado.foto_principal.name if imovel_recarregado.foto_principal else 'None'}")
+                if imovel_recarregado.foto_principal:
+                    print(f"URL da foto principal gerada: {imovel_recarregado.foto_principal.url}")
+                # --- FIM DEBUG ---
+
+                # Lógica das fotos da galeria (mantida)
+                fotos_galeria = request.FILES.getlist('fotos_galeria')
+                print(f"Processando {len(fotos_galeria)} fotos da galeria...") # DEBUG
+                for f in fotos_galeria:
+                    try:
+                        foto_obj = Foto.objects.create(imovel=imovel_salvo, imagem=f)
+                        print(f"Foto da galeria salva: {foto_obj.imagem.name}, URL: {foto_obj.imagem.url}") # DEBUG
+                    except Exception as e_galeria:
+                        print(f"!!! ERRO ao salvar foto da galeria: {f.name} !!!") # DEBUG
+                        print(e_galeria) # DEBUG
+                
+                messages.success(request, 'Imóvel atualizado com sucesso!')
+                print("Redirecionando para meus_imoveis...") # DEBUG
+                return redirect('meus_imoveis')
+
+            except Exception as e: # Captura QUALQUER erro durante o form.save()
+                # --- DEBUG ERRO NO SAVE ---
+                print(f"!!! ERRO CRÍTICO DURANTE form.save() (editar_imovel) !!!")
+                print(f"Tipo do erro: {type(e)}")
+                print(f"Erro: {e}")
+                traceback.print_exc() # Imprime o traceback completo do erro
+                # --- FIM DEBUG ---
+                messages.error(request, f'Ocorreu um erro inesperado ao salvar: {e}')
+                # Não redireciona
+
+        else: # Se form.is_valid() for False
+            # --- DEBUG FORM INVÁLIDO ---
+            print("Formulário (Editar) NÃO é válido.")
+            print("Erros do formulário:")
+            print(form.errors.as_text()) # Usar as_text para logs
+            # --- FIM DEBUG ---
+            messages.error(request, 'Por favor, corrija os erros no formulário.')
+
+    else: # Se for GET
         form = ImovelForm(instance=imovel)
+        print("Renderizando formulário (Editar) para GET.") # DEBUG
+
+    # Renderiza o template em caso de GET ou erro no POST
+    print("Renderizando template anunciar_imovel.html (Editar)...") # DEBUG
     return render(request, 'contas/anunciar_imovel.html', {'form': form})
+
 
 # --- View "Excluir Imóvel" (Original) ---
 @login_required
@@ -98,7 +243,8 @@ def excluir_foto(request, foto_id):
         messages.success(request, 'Foto excluída com sucesso.')
     else:
         messages.error(request, 'Você não tem permissão para excluir esta foto.')
-    return redirect('editar_imovel', imovel_id=imovel_id)
+    # Corrigido para usar o ID do imóvel correto
+    return redirect('editar_imovel', imovel_id=imovel_id) 
 
 # --- View "Perfil" (Original) ---
 @login_required
@@ -106,20 +252,29 @@ def perfil(request):
     if request.method == 'POST':
         if 'update_user' in request.POST:
             user_form = UserUpdateForm(request.POST, instance=request.user)
-            password_form = CustomPasswordChangeForm(request.user)
+            password_form = CustomPasswordChangeForm(request.user) # Mantém o form de senha limpo
             if user_form.is_valid():
                 user_form.save()
                 messages.success(request, 'Suas informações foram atualizadas com sucesso!')
                 return redirect('perfil')
+            # Se o user_form não for válido, renderiza ambos os forms com erros
         
         elif 'change_password' in request.POST:
             password_form = CustomPasswordChangeForm(request.user, request.POST)
-            user_form = UserUpdateForm(instance=request.user)
+            user_form = UserUpdateForm(instance=request.user) # Mantém o form de usuário com dados atuais
             if password_form.is_valid():
                 user = password_form.save()
                 update_session_auth_hash(request, user)
                 messages.success(request, 'Sua senha foi alterada com sucesso!')
                 return redirect('perfil')
+            # Se o password_form não for válido, renderiza ambos os forms com erros
+        
+        # Se nenhum botão foi pressionado ou houve erro, inicializa ambos
+        else:
+             user_form = UserUpdateForm(request.POST, instance=request.user) # Recarrega com POST data se houver erro
+             password_form = CustomPasswordChangeForm(request.user, request.POST) # Recarrega com POST data se houver erro
+    
+    # Se for GET ou se houve erro no POST e precisamos re-renderizar
     else:
         user_form = UserUpdateForm(instance=request.user)
         password_form = CustomPasswordChangeForm(request.user)
