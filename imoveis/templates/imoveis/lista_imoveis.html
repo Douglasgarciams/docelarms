@@ -14,15 +14,15 @@
                 <div class="col-md-3">
                     <select name="finalidade" class="form-select form-select-lg">
                         <option value="">Comprar ou Alugar?</option>
-                        <option value="VENDA" {% if valores_filtro.finalidade == 'VENDA' %}selected{% endif %}>Comprar</option>
-                        <option value="ALUGUEL" {% if valores_filtro.finalidade == 'ALUGUEL' %}selected{% endif %}>Alugar</option>
+                        <option value="VENDA" {% if valores_filtro.finalidade|default:'' == 'VENDA' %}selected{% endif %}>Comprar</option>
+                        <option value="ALUGUEL" {% if valores_filtro.finalidade|default:'' == 'ALUGUEL' %}selected{% endif %}>Alugar</option>
                     </select>
                 </div>
                 <div class="col-md-3">
                     <select name="cidade" id="hero_cidade" class="form-select form-select-lg">
                         <option value="">Cidade</option>
                         {% for cidade in cidades %}
-                            <option value="{{ cidade.id }}" {% if valores_filtro.cidade == cidade.id|stringformat:"s" %}selected{% endif %}>{{ cidade.nome }}</option>
+                            <option value="{{ cidade.id }}" {% if valores_filtro.cidade|default:'' == cidade.id|stringformat:"s" %}selected{% endif %}>{{ cidade.nome }}</option>
                         {% endfor %}
                     </select>
                 </div>
@@ -73,8 +73,8 @@
                         <label class="form-label">Finalidade</label>
                         <select name="finalidade" class="form-select">
                             <option value="">Todas</option>
-                            <option value="VENDA" {% if valores_filtro.finalidade == 'VENDA' %}selected{% endif %}>Venda</option>
-                            <option value="ALUGUEL" {% if valores_filtro.finalidade == 'ALUGUEL' %}selected{% endif %}>Aluguel</option>
+                            <option value="VENDA" {% if valores_filtro.finalidade|default:'' == 'VENDA' %}selected{% endif %}>Venda</option>
+                            <option value="ALUGUEL" {% if valores_filtro.finalidade|default:'' == 'ALUGUEL' %}selected{% endif %}>Aluguel</option>
                         </select>
                     </div>
 
@@ -83,7 +83,7 @@
                         <select name="cidade" id="sidebar_cidade" class="form-select">
                             <option value="">Todas as cidades</option>
                             {% for cidade in cidades %}
-                                <option value="{{ cidade.id }}" {% if valores_filtro.cidade == cidade.id|stringformat:"s" %}selected{% endif %}>{{ cidade.nome }}</option>
+                                <option value="{{ cidade.id }}" {% if valores_filtro.cidade|default:'' == cidade.id|stringformat:"s" %}selected{% endif %}>{{ cidade.nome }}</option>
                             {% endfor %}
                         </select>
                     </div>
@@ -100,7 +100,7 @@
                         <select name="imobiliaria" class="form-select">
                             <option value="">Todas</option>
                             {% for imobiliaria in imobiliarias %}
-                                <option value="{{ imobiliaria.id }}" {% if valores_filtro.imobiliaria == imobiliaria.id|stringformat:"s" %}selected{% endif %}>{{ imobiliaria.nome }}</option>
+                                <option value="{{ imobiliaria.id }}" {% if valores_filtro.imobiliaria|default:'' == imobiliaria.id|stringformat:"s" %}selected{% endif %}>{{ imobiliaria.nome }}</option>
                             {% endfor %}
                         </select>
                     </div>
