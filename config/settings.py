@@ -126,11 +126,11 @@ DEFAULT_FROM_EMAIL = EMAIL_HOST_USER
 # --- BACKBLAZE B2 STORAGE CONFIG ---
 DEFAULT_FILE_STORAGE = "storages.backends.s3boto3.S3Boto3Storage"
 
-AWS_ACCESS_KEY_ID = os.getenv("B2_ACCESS_KEY_ID") or os.getenv("B2_KEY_ID")
-AWS_SECRET_ACCESS_KEY = os.getenv("B2_SECRET_ACCESS_KEY") or os.getenv("B2_APP_KEY")
+AWS_ACCESS_KEY_ID = os.getenv("B2_ACCESS_KEY_ID")
+AWS_SECRET_ACCESS_KEY = os.getenv("B2_SECRET_ACCESS_KEY")
 AWS_STORAGE_BUCKET_NAME = os.getenv("B2_BUCKET_NAME")
-AWS_S3_ENDPOINT_URL = os.getenv("B2_ENDPOINT")  # ex: https://s3.us-west-004.backblazeb2.com
-AWS_S3_REGION_NAME = os.getenv("B2_REGION_NAME", "us-west-004")
+AWS_S3_REGION_NAME = os.getenv("B2_REGION_NAME", "us-east-005")
+AWS_S3_ENDPOINT_URL = f"https://{os.getenv('B2_ENDPOINT')}"  # exemplo: s3.us-east-005.backblazeb2.com
 AWS_QUERYSTRING_AUTH = False
 AWS_DEFAULT_ACL = None
 AWS_S3_FILE_OVERWRITE = False
@@ -139,6 +139,7 @@ AWS_S3_FILE_OVERWRITE = False
 AWS_LOCATION = 'media'
 AWS_S3_CUSTOM_DOMAIN = f"{AWS_S3_ENDPOINT_URL}/file/{AWS_STORAGE_BUCKET_NAME}"
 MEDIA_URL = f"https://{AWS_S3_CUSTOM_DOMAIN}/{AWS_LOCATION}/"
+
 
 # --- LOGGING DETALHADO (para debug em produção e storage) ---
 LOGGING = {
