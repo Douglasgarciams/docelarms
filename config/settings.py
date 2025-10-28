@@ -123,7 +123,7 @@ EMAIL_HOST_USER = os.environ.get('GMAIL_USER')
 EMAIL_HOST_PASSWORD = os.environ.get('GMAIL_APP_PASSWORD')
 DEFAULT_FROM_EMAIL = EMAIL_HOST_USER
 
-# --- BACKBLAZE B2 STORAGE CONFIG (CORRIGIDO) ---
+# --- BACKBLAZE B2 STORAGE CONFIG (CORREÇÃO FINAL) ---
 DEFAULT_FILE_STORAGE = "storages.backends.s3boto3.S3Boto3Storage"
 
 AWS_ACCESS_KEY_ID = os.getenv("B2_ACCESS_KEY_ID")
@@ -135,25 +135,21 @@ AWS_QUERYSTRING_AUTH = False
 AWS_DEFAULT_ACL = None
 AWS_S3_FILE_OVERWRITE = False
 
-# --- CORREÇÃO APLICADA AQUI ---
+# Pasta dentro do bucket
+AWS_LOCATION = 'media'
 
-# 1. AWS_LOCATION DEVE SER VAZIO.
-# A chave B2 ('docelarms-django-key') já força os arquivos para o prefixo "media/".
-# Se colocarmos 'media' aqui, ele tentará salvar em 'media/media/'.
-AWS_LOCATION = ''
-
-# 2. O CUSTOM_DOMAIN continua o mesmo (apontando para o BUCKET).
+# 1. O Custom Domain está CORRETO (sem https://)
 AWS_S3_CUSTOM_DOMAIN = f"{os.getenv('B2_ENDPOINT')}/file/{AWS_STORAGE_BUCKET_NAME}"
 
-# 3. MEDIA_URL DEVE ser '/media/'
-# Isso garante que o Django crie o link de visualização correto,
-# já que a chave B2 está salvando os arquivos dentro de 'media/'.
-MEDIA_URL = '/media/'
+# 2. MEDIA_URL (A MUDANÇA ESTÁ AQUI)
+# Em vez de '/media/', vamos usar a URL absoluta completa.
+# Isso força o Django a NUNCA usar um caminho local.
+MEDIA_URL = f"https://{AWS_S3_CUSTOM_DOMAIN}/{AWS_LOCATION}/"
 
 # --- FIM DA CORREÇÃO ---
 
 
-# --- INÍCIO DO BLOCO DE DEPURAÇÃO (AÇÃO) ---
+# --- Bloco de depuração (pode remover ou manter) ---
 print("--- INICIANDO DEBUG DE STORAGE B2 ---")
 print(f"B2_ENDPOINT (raw): {os.getenv('B2_ENDPOINT')}")
 print(f"B2_BUCKET_NAME (raw): {os.getenv('B2_BUCKET_NAME')}")
@@ -165,6 +161,5 @@ print(f"AWS_STORAGE_BUCKET_NAME (final): {AWS_STORAGE_BUCKET_NAME}")
 print(f"AWS_S3_CUSTOM_DOMAIN (final): {AWS_S3_CUSTOM_DOMAIN}")
 print(f"MEDIA_URL (final): {MEDIA_URL}")
 print("--- FIM DO DEBUG DE STORAGE B2 ---")
-# --- FIM DO BLOCO DE DEPURAÇÃO ---
 
 
