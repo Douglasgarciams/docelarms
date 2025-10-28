@@ -135,18 +135,20 @@ AWS_QUERYSTRING_AUTH = False
 AWS_DEFAULT_ACL = None
 AWS_S3_FILE_OVERWRITE = False
 
-# Pasta dentro do bucket
-AWS_LOCATION = 'media'
-
 # --- CORREÇÃO APLICADA AQUI ---
 
-# 1. AWS_S3_CUSTOM_DOMAIN NÃO deve ter "https://" no início.
-#    Usamos os.getenv('B2_ENDPOINT') diretamente.
+# 1. AWS_LOCATION DEVE SER VAZIO.
+# A chave B2 ('docelarms-django-key') já força os arquivos para o prefixo "media/".
+# Se colocarmos 'media' aqui, ele tentará salvar em 'media/media/'.
+AWS_LOCATION = ''
+
+# 2. O CUSTOM_DOMAIN continua o mesmo (apontando para o BUCKET).
 AWS_S3_CUSTOM_DOMAIN = f"{os.getenv('B2_ENDPOINT')}/file/{AWS_STORAGE_BUCKET_NAME}"
 
-# 2. MEDIA_URL deve ser apenas o CAMINHO (path) relativo ao custom_domain.
-#    O django-storages irá juntar: https:// + AWS_S3_CUSTOM_DOMAIN + MEDIA_URL
-MEDIA_URL = f"/{AWS_LOCATION}/"
+# 3. MEDIA_URL DEVE ser '/media/'
+# Isso garante que o Django crie o link de visualização correto,
+# já que a chave B2 está salvando os arquivos dentro de 'media/'.
+MEDIA_URL = '/media/'
 
 # --- FIM DA CORREÇÃO ---
 
