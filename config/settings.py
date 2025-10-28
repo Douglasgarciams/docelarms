@@ -33,7 +33,7 @@ INSTALLED_APPS = [
     'whitenoise.runserver_nostatic', 
     'django.contrib.staticfiles',
     'django.contrib.humanize',
-    'storages',
+    'storages', # Mantemos 'storages' apenas para o caso de usarmos para estáticos
     'imoveis',
     'contas',
 ]
@@ -118,37 +118,18 @@ EMAIL_HOST_USER = os.environ.get('GMAIL_USER')
 EMAIL_HOST_PASSWORD = os.environ.get('GMAIL_APP_PASSWORD')
 DEFAULT_FROM_EMAIL = EMAIL_HOST_USER
 
-# --- Configurações do Backblaze B2 ---
+# --- Configurações do Backblaze B2 (Usadas pelo Boto3 Manual) ---
 
 AWS_ACCESS_KEY_ID = os.environ.get('B2_ACCESS_KEY_ID')
 AWS_SECRET_ACCESS_KEY = os.environ.get('B2_SECRET_ACCESS_KEY')
 AWS_STORAGE_BUCKET_NAME = os.environ.get('B2_BUCKET_NAME')
-B2_ENDPOINT = os.environ.get('B2_ENDPOINT') # Ex: s3.us-east-005.backblazeb2.com
-B2_REGION = os.environ.get('B2_REGION_NAME') # Ex: us-east-005 (o nome da região B2)
+B2_ENDPOINT = os.environ.get('B2_ENDPOINT') 
+B2_REGION = os.environ.get('B2_REGION_NAME')
+AWS_S3_ENDPOINT_URL = f"https://{B2_ENDPOINT}" # A view usa isso
+AWS_LOCATION = 'media' # A view usa isso
 
-# O endpoint que o Boto3 usa para fazer requisições (uploads, etc.)
-AWS_S3_ENDPOINT_URL = f"https://{B2_ENDPOINT}"
-
-# O domínio personalizado para acesso público aos arquivos.
-# O B2 usa um formato específico para URLs amigáveis:
-# bucket-name.s3.region-code.backblazeb2.com (se for um endpoint do tipo S3)
-# OU, se você configurou um CNAME no Cloudflare para o seu bucket
-# (o que você provavelmente fez para o R2, mas estamos usando o B2 agora):
-# files.docelarms.com.br (se você apontou esse CNAME para a URL amigável do B2)
-
-# VAMOS USAR O DOMÍNIO AMIGÁVEL DIRETO DO B2 (sem Cloudflare para simplificar)
-# Formato: https://f005.backblazeb2.com/file/seu-nome-de-bucket/
-# OU: https://seu-nome-de-bucket.s3.REGION.backblazeb2.com/ (se o endpoint S3 for usado)
-# Baseado na sua configuração anterior, vamos assumir que B2_ENDPOINT já é o endpoint S3.
-# Se B2_ENDPOINT for 's3.us-east-005.backblazeb2.com', então a URL base para o bucket é 'seu-bucket-name.s3.us-east-005.backblazeb2.com'
+# O DOMÍNIO PÚBLICO (Para o navegador exibir a imagem)
 AWS_S3_CUSTOM_DOMAIN = f"{AWS_STORAGE_BUCKET_NAME}.{B2_ENDPOINT}"
-
-AWS_S3_REGION_NAME = B2_REGION
-AWS_S3_SIGNATURE_VERSION = 's3v4'
-AWS_S3_FILE_OVERWRITE = False
-AWS_DEFAULT_ACL = 'public-read' # Essencial para buckets públicos
-AWS_QUERYSTRING_AUTH = False 
-AWS_S3_ADDRESSING_STYLE = 'virtual' # B2 usa estilo 'virtual' (bucket.endpoint.com)
 
 # --- Lógica de ARMAZENAMENTO E MEDIA (CORRIGIDA) ---
 if DEBUG:
@@ -159,17 +140,10 @@ if DEBUG:
 else:
     # --- PRODUÇÃO (RENDER) ---
     
-    # ATIVA O ARMAZENAMENTO DO S3/B2
-    DEFAULT_FILE_STORAGE = 'storages.backends.s3boto3.S3Boto3Storage'
-    
-    # Define a pasta raiz dentro do bucket (se usarmos)
-    AWS_LOCATION = 'media'
-    
-    # Define a URL de exibição
-    # A URL para arquivos no B2 é: https://[B2_BUCKET_NAME].[B2_ENDPOINT]/[AWS_LOCATION]/[nome_do_arquivo]
-    # Se você quiser o caminho completo como no S3:
-    MEDIA_URL = f"https://{AWS_STORAGE_BUCKET_NAME}.{B2_ENDPOINT}/{AWS_LOCATION}/"
-    # Certifique-se de que B2_ENDPOINT não inclui "https://"
-    
-    MEDIA_ROOT = BASE_DIR / 'media' # Ainda aponta para a pasta local, mas não será usada em prod
+    # DESATIVAMOS O DJANGO-STORAGES PARA UPLOADS MANUAIS
+    DEFAULT_FILE_STORAGE = 'django.core.files.storage.FileSystemStorage' # Usa o FileSystem (temporário no Render, mas não importa, pois o Boto3 já enviou)
+
+    # A URL para exibição agora aponta para o B2
+    MEDIA_URL = f"https://{AWS_S3_CUSTOM_DOMAIN}/{AWS_LOCATION}/"
+    MEDIA_ROOT = BASE_DIR / 'media'
 # ----------------------------------------------------------------
