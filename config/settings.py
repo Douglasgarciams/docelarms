@@ -119,26 +119,42 @@ EMAIL_HOST_PASSWORD = os.environ.get('GMAIL_APP_PASSWORD')
 DEFAULT_FROM_EMAIL = EMAIL_HOST_USER
 
 # --- Cloudflare R2 Settings ---
+# config/settings.py
+# ... (no final do arquivo) ...
+
+# --- Configurações do Cloudflare R2 para django-storages (VERSÃO REVISADA) ---
+
+# Credenciais (Lidas do Ambiente)
 AWS_ACCESS_KEY_ID = os.environ.get('CLOUDFLARE_R2_ACCESS_KEY_ID')
 AWS_SECRET_ACCESS_KEY = os.environ.get('CLOUDFLARE_R2_SECRET_ACCESS_KEY')
-AWS_STORAGE_BUCKET_NAME = os.environ.get('CLOUDFLARE_R2_BUCKET_NAME') 
-CLOUDFLARE_ACCOUNT_ID = os.environ.get('CLOUDFLARE_R2_ACCOUNT_ID') 
-AWS_S3_ENDPOINT_URL = f"https://{CLOUDFLARE_ACCOUNT_ID}.r2.cloudflarestorage.com"
-AWS_S3_REGION_NAME = 'auto' 
-AWS_S3_SIGNATURE_VERSION = 's3v4'
-AWS_S3_FILE_OVERWRITE = False 
-AWS_DEFAULT_ACL = None 
-AWS_QUERYSTRING_AUTH = False 
-DEFAULT_FILE_STORAGE = 'storages.backends.s3boto3.S3Boto3Storage'
-# -----------------------------
+AWS_STORAGE_BUCKET_NAME = os.environ.get('CLOUDFLARE_R2_BUCKET_NAME')
+CLOUDFLARE_ACCOUNT_ID = os.environ.get('CLOUDFLARE_R2_ACCOUNT_ID')
 
-# --- MEDIA FILES CONFIGURATION (CONDITIONAL) ---
+# 1. ENDPOINT DA API S3 (Para Boto3 fazer o upload)
+AWS_S3_ENDPOINT_URL = f"https://{CLOUDFLARE_ACCOUNT_ID}.r2.cloudflarestorage.com"
+
+# 2. DOMÍNIO PÚBLICO (Para o navegador exibir a imagem)
+#    Substitua 'pub-xxxxxxxxxxxx.r2.dev' pela URL Pública que você copiou!
+R2_PUBLIC_DOMAIN = 'https://pub-b06bb61e03d3434889f102b1a56ce95d.r2.dev' # <<< COLOQUE SUA URL PÚBLICA AQUI
+AWS_S3_CUSTOM_DOMAIN = R2_PUBLIC_DOMAIN # Informa ao django-storages
+
+# Configurações Adicionais da AWS/S3
+AWS_S3_REGION_NAME = 'auto'
+AWS_S3_SIGNATURE_VERSION = 's3v4'
+AWS_S3_FILE_OVERWRITE = False
+AWS_DEFAULT_ACL = None
+AWS_QUERYSTRING_AUTH = False # URLs públicas, já que o bucket é público
+
+# Define o backend de armazenamento padrão para arquivos de mídia
+DEFAULT_FILE_STORAGE = 'storages.backends.s3boto3.S3Boto3Storage'
+
+# --- Lógica de MEDIA_URL ATUALIZADA ---
 if DEBUG:
-    # Desenvolvimento Local: Servir da pasta /media/ localmente
+    # Desenvolvimento Local
     MEDIA_URL = '/media/'
     MEDIA_ROOT = BASE_DIR / 'media'
 else:
-    # Produção (Render): Servir diretamente do R2
-    MEDIA_URL = f"{AWS_S3_ENDPOINT_URL}/{AWS_STORAGE_BUCKET_NAME}/media/"
-    MEDIA_ROOT = BASE_DIR / 'media' # Mantido para referência
-# ---------------------------------------------
+    # Produção (Render): Usa a URL Pública do R2
+    MEDIA_URL = f"https://{R2_PUBLIC_DOMAIN}/media/"
+    MEDIA_ROOT = BASE_DIR / 'media'
+# ----------------------------------------------------------------
