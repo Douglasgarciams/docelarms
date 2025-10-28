@@ -7,6 +7,7 @@ from pathlib import Path
 
 # --- BASE DIR ---
 BASE_DIR = Path(__file__).resolve().parent.parent
+DEBUG = True
 
 # --- SECURITY ---
 SECRET_KEY = os.environ.get(
@@ -146,3 +147,15 @@ else:
     AWS_S3_CUSTOM_DOMAIN = f"{AWS_S3_ENDPOINT_URL}/file/{AWS_STORAGE_BUCKET_NAME}"
     MEDIA_URL = f"https://{AWS_S3_CUSTOM_DOMAIN}/{AWS_LOCATION}/"
     MEDIA_ROOT = None  # não usado no B2
+# --- LOGGING DETALHADO (para debug em produção e storage) ---
+LOGGING = {
+    "version": 1,
+    "disable_existing_loggers": False,
+    "handlers": {
+        "console": {"class": "logging.StreamHandler"},
+    },
+    "loggers": {
+        "django": {"handlers": ["console"], "level": "DEBUG"},
+        "storages": {"handlers": ["console"], "level": "DEBUG"},
+    },
+}
