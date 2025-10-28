@@ -142,8 +142,10 @@ AWS_S3_ADDRESSING_STYLE = "path"
 DEFAULT_FILE_STORAGE = "storages.backends.s3boto3.S3Boto3Storage"
 
 # Caminho da pasta dentro do bucket (não crie manualmente)
-AWS_LOCATION = "media"
+AWS_LOCATION = ""
 
 # URL pública para servir os arquivos
-MEDIA_URL = f"https://{AWS_S3_CUSTOM_DOMAIN}/{AWS_LOCATION}/"
+MEDIA_URL = f"https://{AWS_S3_CUSTOM_DOMAIN}"
 MEDIA_ROOT = BASE_DIR / "media"  # apenas referência local (não usada em produção)
+AWS_DEFAULT_ACL = "public-read"
+
