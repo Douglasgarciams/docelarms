@@ -125,12 +125,10 @@ DEFAULT_FROM_EMAIL = EMAIL_HOST_USER
 
 if DEBUG:
     # --- CONFIGURAÇÃO DE DESENVOLVIMENTO LOCAL ---
-    # Salva e exibe arquivos da pasta 'media' local.
     MEDIA_URL = '/media/'
     MEDIA_ROOT = BASE_DIR / 'media'
-    # Usa o armazenamento padrão (salvar no disco)
     DEFAULT_FILE_STORAGE = 'django.core.files.storage.FileSystemStorage'
-    
+
 else:
     # --- CONFIGURAÇÃO DE PRODUÇÃO (RENDER) ---
     
@@ -140,33 +138,23 @@ else:
     AWS_STORAGE_BUCKET_NAME = os.environ.get('CLOUDFLARE_R2_BUCKET_NAME')
     CLOUDFLARE_ACCOUNT_ID = os.environ.get('CLOUDFLARE_R2_ACCOUNT_ID')
 
-    # Endpoint da API (para upload)
+    # Endpoint da API (Para Upload E Exibição)
     AWS_S3_ENDPOINT_URL = f"https://{CLOUDFLARE_ACCOUNT_ID}.r2.cloudflarestorage.com"
     
-    # Domínio Público (para exibição)
-    R2_PUBLIC_DOMAIN = f"pub-{os.environ.get('R2_PUBLIC_DOMAIN_HASH')}.r2.dev"
-    AWS_S3_CUSTOM_DOMAIN = R2_PUBLIC_DOMAIN
-
-    # Configurações Boto3
+    # Configurações Essenciais
     AWS_S3_REGION_NAME = 'auto'
     AWS_S3_SIGNATURE_VERSION = 's3v4'
     AWS_S3_FILE_OVERWRITE = False
-    AWS_DEFAULT_ACL = 'public-read' # Define uploads como públicos
-    AWS_QUERYSTRING_AUTH = False
-    AWS_S3_ADDRESSING_STYLE = 'virtual' # 'virtual' é o padrão para R2 com custom domain
-    
-    # Força o boto3 a usar o endpoint correto
-    AWS_S3_CLIENT_CONFIG = {
-        'endpoint_url': AWS_S3_ENDPOINT_URL,
-        'region_name': AWS_S3_REGION_NAME,
-        'signature_version': AWS_S3_SIGNATURE_VERSION,
-    }
+    AWS_DEFAULT_ACL = 'public-read' # Garante que novos uploads sejam públicos
+    AWS_QUERYSTRING_AUTH = False # Não usa URLs assinadas
 
+    # Removemos AWS_S3_CUSTOM_DOMAIN, AWS_LOCATION, AWS_S3_CLIENT_CONFIG, AWS_S3_ADDRESSING_STYLE
+    
     # Define o backend de armazenamento padrão
     DEFAULT_FILE_STORAGE = 'storages.backends.s3boto3.S3Boto3Storage'
 
-    # Localização e URL
-    AWS_LOCATION = 'media'
-    MEDIA_URL = f"https://{AWS_S3_CUSTOM_DOMAIN}/{AWS_LOCATION}/"
-    MEDIA_ROOT = BASE_DIR / 'media' # Django ainda precisa disso
+    # URL de Mídia (o django-storages deve construir isso automaticamente)
+    # A pasta 'media' virá do upload_to='fotos_imoveis/' etc.
+    MEDIA_URL = f"{AWS_S3_ENDPOINT_URL}/{AWS_STORAGE_BUCKET_NAME}/"
+    MEDIA_ROOT = BASE_DIR / 'media'
 # ----------------------------------------------------------------
