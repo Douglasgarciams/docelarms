@@ -126,33 +126,38 @@ AWS_SECRET_ACCESS_KEY = os.environ.get('CLOUDFLARE_R2_SECRET_ACCESS_KEY')
 AWS_STORAGE_BUCKET_NAME = os.environ.get('CLOUDFLARE_R2_BUCKET_NAME')
 CLOUDFLARE_ACCOUNT_ID = os.environ.get('CLOUDFLARE_R2_ACCOUNT_ID')
 
-# 1. ENDPOINT DA API S3 (Para Boto3 fazer o upload E exibir)
+# 1. ENDPOINT DA API S3 (Para Boto3 fazer o upload)
+# Esta é a URL que o boto3 usará para se conectar.
 AWS_S3_ENDPOINT_URL = f"https://{CLOUDFLARE_ACCOUNT_ID}.r2.cloudflarestorage.com"
 
-# 2. REMOVEMOS O DOMÍNIO CUSTOMIZADO PARA SIMPLICAR
-AWS_S3_CUSTOM_DOMAIN = None 
+# 2. DOMÍNIO PÚBLICO (Para o navegador exibir a imagem)
+# Cole sua URL pública (pub-....r2.dev) aqui, SEM https:// e SEM a barra / no final
+R2_PUBLIC_DOMAIN = 'pub-b06bb61e03d3434889f102b1a56ce95d.r2.dev' # <<< SUBSTITUA PELO SEU DOMÍNIO PÚBLICO
+AWS_S3_CUSTOM_DOMAIN = R2_PUBLIC_DOMAIN # Informa ao django-storages
 
 # Configurações Adicionais
 AWS_S3_REGION_NAME = 'auto'
 AWS_S3_SIGNATURE_VERSION = 's3v4'
 AWS_S3_FILE_OVERWRITE = False
-AWS_DEFAULT_ACL = None
-AWS_QUERYSTRING_AUTH = False 
+AWS_DEFAULT_ACL = None 
+AWS_QUERYSTRING_AUTH = False # URLs são públicas
 
 # Define o backend de armazenamento padrão para arquivos de mídia
 DEFAULT_FILE_STORAGE = 'storages.backends.s3boto3.S3Boto3Storage'
 
-# 3. DEFINE A PASTA-RAIZ DENTRO DO BUCKET
-AWS_LOCATION = 'media'
-
-# 4. CONFIGURAÇÃO DE MEDIA_URL
+# --- Lógica de MEDIA_URL ATUALIZADA ---
 if DEBUG:
-    # Desenvolvimento Local: Servir da pasta /media/ local
+    # Desenvolvimento Local
     MEDIA_URL = '/media/'
     MEDIA_ROOT = BASE_DIR / 'media'
 else:
-    # Produção (Render): Gera a URL completa
-    # Ex: https://<account_id>.r2.cloudflarestorage.com/docelarms/media/
-    MEDIA_URL = f"{AWS_S3_ENDPOINT_URL}/{AWS_STORAGE_BUCKET_NAME}/{AWS_LOCATION}/"
-    MEDIA_ROOT = BASE_DIR / 'media' # Django ainda precisa disso
+    # Produção (Render): Usa a URL Pública do R2
+    
+    # *** LINHA CRUCIAL ***
+    # Diz ao django-storages para salvar todos os uploads na pasta /media/
+    AWS_LOCATION = 'media'
+    
+    # A URL agora será: https://<dominio_publico>/media/
+    MEDIA_URL = f"https://{AWS_S3_CUSTOM_DOMAIN}/{AWS_LOCATION}/"
+    MEDIA_ROOT = BASE_DIR / 'media' 
 # ----------------------------------------------------------------
