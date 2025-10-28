@@ -33,7 +33,7 @@ INSTALLED_APPS = [
     'whitenoise.runserver_nostatic', 
     'django.contrib.staticfiles',
     'django.contrib.humanize',
-    'storages', # Mantemos 'storages' apenas para o caso de usarmos para estáticos
+    'storages',
     'imoveis',
     'contas',
 ]
@@ -118,18 +118,22 @@ EMAIL_HOST_USER = os.environ.get('GMAIL_USER')
 EMAIL_HOST_PASSWORD = os.environ.get('GMAIL_APP_PASSWORD')
 DEFAULT_FROM_EMAIL = EMAIL_HOST_USER
 
-# --- Configurações do Backblaze B2 (Usadas pelo Boto3 Manual) ---
-
+# --- Configurações do Backblaze B2 ---
 AWS_ACCESS_KEY_ID = os.environ.get('B2_ACCESS_KEY_ID')
 AWS_SECRET_ACCESS_KEY = os.environ.get('B2_SECRET_ACCESS_KEY')
 AWS_STORAGE_BUCKET_NAME = os.environ.get('B2_BUCKET_NAME')
-B2_ENDPOINT = os.environ.get('B2_ENDPOINT') 
+B2_ENDPOINT = os.environ.get('B2_ENDPOINT')
 B2_REGION = os.environ.get('B2_REGION_NAME')
-AWS_S3_ENDPOINT_URL = f"https://{B2_ENDPOINT}" # A view usa isso
-AWS_LOCATION = 'media' # A view usa isso
 
-# O DOMÍNIO PÚBLICO (Para o navegador exibir a imagem)
+AWS_S3_ENDPOINT_URL = f"https://{B2_ENDPOINT}"
 AWS_S3_CUSTOM_DOMAIN = f"{AWS_STORAGE_BUCKET_NAME}.{B2_ENDPOINT}"
+AWS_S3_REGION_NAME = B2_REGION
+AWS_S3_SIGNATURE_VERSION = 's3v4'
+AWS_S3_FILE_OVERWRITE = False
+AWS_DEFAULT_ACL = 'public-read'
+AWS_QUERYSTRING_AUTH = False 
+AWS_S3_ADDRESSING_STYLE = 'virtual'
+
 
 # --- Lógica de ARMAZENAMENTO E MEDIA (CORRIGIDA) ---
 if DEBUG:
@@ -140,10 +144,11 @@ if DEBUG:
 else:
     # --- PRODUÇÃO (RENDER) ---
     
-    # DESATIVAMOS O DJANGO-STORAGES PARA UPLOADS MANUAIS
-    DEFAULT_FILE_STORAGE = 'django.core.files.storage.FileSystemStorage' # Usa o FileSystem (temporário no Render, mas não importa, pois o Boto3 já enviou)
-
-    # A URL para exibição agora aponta para o B2
+    # *** LINHA CRUCIAL CORRIGIDA ***
+    # Ativa o armazenamento do S3/B2 em produção
+    DEFAULT_FILE_STORAGE = 'storages.backends.s3boto3.S3Boto3Storage'
+    
+    AWS_LOCATION = 'media' # Salva tudo na pasta /media/
     MEDIA_URL = f"https://{AWS_S3_CUSTOM_DOMAIN}/{AWS_LOCATION}/"
     MEDIA_ROOT = BASE_DIR / 'media'
 # ----------------------------------------------------------------
