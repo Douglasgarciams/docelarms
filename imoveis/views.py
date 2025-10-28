@@ -12,12 +12,12 @@ def lista_imoveis(request):
     
     imobiliaria_selecionada = None
 
-    # Lógica de filtros (sem alterações)
+    # Lógica de filtros (pegando os valores)
     finalidade = request.GET.get('finalidade')
     imobiliaria_id = request.GET.get('imobiliaria')
     cidade_id = request.GET.get('cidade')
     bairro_id = request.GET.get('bairro')
-    # ... (restante dos seus filtros)
+    
     quartos_min = request.GET.get('quartos')
     suites_min = request.GET.get('suites')
     banheiros_min = request.GET.get('banheiros')
@@ -27,21 +27,54 @@ def lista_imoveis(request):
     area_min = request.GET.get('area')
     preco_max = request.GET.get('preco_max')
 
-    if finalidade: imoveis_list = imoveis_list.filter(finalidade=finalidade)
-    if imobiliaria_id:
+    # --- APLICANDO OS FILTROS COM VALIDAÇÃO ---
+
+    if finalidade: 
+        imoveis_list = imoveis_list.filter(finalidade=finalidade)
+    
+    # Validação para IDs (que devem ser numéricos)
+    if imobiliaria_id and imobiliaria_id.isdigit():
         imoveis_list = imoveis_list.filter(imobiliaria__id=imobiliaria_id)
-        try: imobiliaria_selecionada = Imobiliaria.objects.get(id=imobiliaria_id)
-        except Imobiliaria.DoesNotExist: imobiliaria_selecionada = None
-    if cidade_id: imoveis_list = imoveis_list.filter(cidade__id=cidade_id)
-    if bairro_id: imoveis_list = imoveis_list.filter(bairro__id=bairro_id)
-    if quartos_min: imoveis_list = imoveis_list.filter(quartos__gte=quartos_min)
-    if suites_min: imoveis_list = imoveis_list.filter(suites__gte=suites_min)
-    if banheiros_min: imoveis_list = imoveis_list.filter(banheiros__gte=banheiros_min)
-    if salas_min: imoveis_list = imoveis_list.filter(salas__gte=salas_min)
-    if cozinhas_min: imoveis_list = imoveis_list.filter(cozinhas__gte=cozinhas_min)
-    if closets_min: imoveis_list = imoveis_list.filter(closets__gte=closets_min)
-    if area_min: imoveis_list = imoveis_list.filter(area__gte=area_min)
-    if preco_max: imoveis_list = imoveis_list.filter(preco__lte=preco_max)
+        try: 
+            imobiliaria_selecionada = Imobiliaria.objects.get(id=imobiliaria_id)
+        except Imobiliaria.DoesNotExist: 
+            imobiliaria_selecionada = None
+            
+    if cidade_id and cidade_id.isdigit(): 
+        imoveis_list = imoveis_list.filter(cidade__id=cidade_id)
+        
+    if bairro_id and bairro_id.isdigit(): 
+        imoveis_list = imoveis_list.filter(bairro__id=bairro_id)
+
+    # Validação para campos numéricos (__gte ou __lte)
+    # Adicionamos a verificação .isdigit() em todos
+    
+    if quartos_min and quartos_min.isdigit(): 
+        imoveis_list = imoveis_list.filter(quartos__gte=quartos_min)
+        
+    if suites_min and suites_min.isdigit(): 
+        imoveis_list = imoveis_list.filter(suites__gte=suites_min)
+        
+    if banheiros_min and banheiros_min.isdigit(): 
+        imoveis_list = imoveis_list.filter(banheiros__gte=banheiros_min)
+        
+    # Esta é a linha que causou o erro, agora corrigida:
+    if salas_min and salas_min.isdigit(): 
+        imoveis_list = imoveis_list.filter(salas__gte=salas_min)
+        
+    if cozinhas_min and cozinhas_min.isdigit(): 
+        imoveis_list = imoveis_list.filter(cozinhas__gte=cozinhas_min)
+        
+    if closets_min and closets_min.isdigit(): 
+        imoveis_list = imoveis_list.filter(closets__gte=closets_min)
+        
+    if area_min and area_min.isdigit(): 
+        imoveis_list = imoveis_list.filter(area__gte=area_min)
+        
+    if preco_max and preco_max.isdigit(): 
+        imoveis_list = imoveis_list.filter(preco__lte=preco_max)
+
+    # --- Fim dos Filtros ---
 
     # Lógica de paginação (sem alterações)
     paginator = Paginator(imoveis_list, 15) 
@@ -53,7 +86,7 @@ def lista_imoveis(request):
         'cidades': cidades,
         'imobiliarias': imobiliarias,
         'imobiliaria_selecionada': imobiliaria_selecionada,
-        'valores_filtro': request.GET
+        'valores_filtro': request.GET # 'valores_filtro' é usado no template
     }
     return render(request, 'imoveis/lista_imoveis.html', contexto)
 
