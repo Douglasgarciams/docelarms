@@ -7,22 +7,27 @@ from pathlib import Path
 
 # --- BASE DIR ---
 BASE_DIR = Path(__file__).resolve().parent.parent
-DEBUG = True
 
 # --- SECURITY ---
 SECRET_KEY = os.environ.get(
     'SECRET_KEY',
     'django-insecure-mituc@yo-b49e!r=wdy^g(9!w57ilg363s9v%4@95ee&$dr%2j'
 )
-DEBUG = os.environ.get('DJANGO_DEBUG') == 'True'
+
+# ⚙️ Em produção, mantenha sempre False
+DEBUG = False
 
 # --- ALLOWED HOSTS ---
 ALLOWED_HOSTS = ["docelarms.com.br", "www.docelarms.com.br"]
 RENDER_EXTERNAL_HOSTNAME = os.environ.get('RENDER_EXTERNAL_HOSTNAME')
 if RENDER_EXTERNAL_HOSTNAME:
     ALLOWED_HOSTS.append(RENDER_EXTERNAL_HOSTNAME)
-if DEBUG:
-    ALLOWED_HOSTS.extend(['localhost', '127.0.0.1'])
+
+# --- CSRF CONFIG ---
+CSRF_TRUSTED_ORIGINS = [
+    "https://www.docelarms.com.br",
+    "https://docelarms.com.br",
+]
 
 # --- INSTALLED APPS ---
 INSTALLED_APPS = [
@@ -58,15 +63,12 @@ TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
         'DIRS': [BASE_DIR / 'templates'],
+        'APP_DIRS': True,
         'OPTIONS': {
             'context_processors': [
                 'django.template.context_processors.request',
                 'django.contrib.auth.context_processors.auth',
                 'django.contrib.messages.context_processors.messages',
-            ],
-            'loaders': [
-                'django.template.loaders.filesystem.Loader',
-                'django.template.loaders.app_directories.Loader',
             ],
         },
     },
@@ -121,32 +123,23 @@ EMAIL_HOST_USER = os.environ.get('GMAIL_USER')
 EMAIL_HOST_PASSWORD = os.environ.get('GMAIL_APP_PASSWORD')
 DEFAULT_FROM_EMAIL = EMAIL_HOST_USER
 
-# --- MEDIA / FILE STORAGE ---
-AWS_ACCESS_KEY_ID = os.environ.get('B2_ACCESS_KEY_ID')
-AWS_SECRET_ACCESS_KEY = os.environ.get('B2_SECRET_ACCESS_KEY')
-AWS_STORAGE_BUCKET_NAME = os.environ.get('B2_BUCKET_NAME')
-AWS_S3_REGION_NAME = os.environ.get('B2_REGION_NAME')
-AWS_S3_ENDPOINT_URL = f"https://{os.environ.get('B2_ENDPOINT')}"  # Ex: s3.us-east-005.backblazeb2.com
-AWS_S3_SIGNATURE_VERSION = 's3v4'
-AWS_S3_FILE_OVERWRITE = False
-AWS_DEFAULT_ACL = 'public-read'
+# --- BACKBLAZE B2 STORAGE CONFIG ---
+DEFAULT_FILE_STORAGE = "storages.backends.s3boto3.S3Boto3Storage"
+
+AWS_ACCESS_KEY_ID = os.getenv("B2_ACCESS_KEY_ID") or os.getenv("B2_KEY_ID")
+AWS_SECRET_ACCESS_KEY = os.getenv("B2_SECRET_ACCESS_KEY") or os.getenv("B2_APP_KEY")
+AWS_STORAGE_BUCKET_NAME = os.getenv("B2_BUCKET_NAME")
+AWS_S3_ENDPOINT_URL = os.getenv("B2_ENDPOINT")  # ex: https://s3.us-west-004.backblazeb2.com
+AWS_S3_REGION_NAME = os.getenv("B2_REGION_NAME", "us-west-004")
 AWS_QUERYSTRING_AUTH = False
-AWS_S3_ADDRESSING_STYLE = 'path'
+AWS_DEFAULT_ACL = None
+AWS_S3_FILE_OVERWRITE = False
 
 # Pasta dentro do bucket
 AWS_LOCATION = 'media'
+AWS_S3_CUSTOM_DOMAIN = f"{AWS_S3_ENDPOINT_URL}/file/{AWS_STORAGE_BUCKET_NAME}"
+MEDIA_URL = f"https://{AWS_S3_CUSTOM_DOMAIN}/{AWS_LOCATION}/"
 
-if DEBUG:
-    # LOCAL STORAGE
-    MEDIA_URL = '/media/'
-    MEDIA_ROOT = BASE_DIR / 'media'
-    DEFAULT_FILE_STORAGE = 'django.core.files.storage.FileSystemStorage'
-else:
-    # BACKBLAZE B2 STORAGE
-    DEFAULT_FILE_STORAGE = 'storages.backends.s3boto3.S3Boto3Storage'
-    AWS_S3_CUSTOM_DOMAIN = f"{AWS_S3_ENDPOINT_URL}/file/{AWS_STORAGE_BUCKET_NAME}"
-    MEDIA_URL = f"https://{AWS_S3_CUSTOM_DOMAIN}/{AWS_LOCATION}/"
-    MEDIA_ROOT = None  # não usado no B2
 # --- LOGGING DETALHADO (para debug em produção e storage) ---
 LOGGING = {
     "version": 1,
