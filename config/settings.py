@@ -166,15 +166,3 @@ print("--- FIM DO DEBUG DE STORAGE B2 ---")
 # --- FIM DO BLOCO DE DEPURAÇÃO ---
 
 
-# --- LOGGING (Está OK) ---
-LOGGING = {
-    "version": 1,
-    "disable_existing_loggers": False,
-    "handlers": {
-        "console": {"class": "logging.StreamHandler"},
-    },
-    "loggers": {
-        "django": {"handlers": ["console"], "level": "DEBUG"},
-        "storages": {"handlers": ["console"], "level": "DEBUG"},
-    },
-}
