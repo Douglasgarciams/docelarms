@@ -118,28 +118,37 @@ EMAIL_HOST_USER = os.environ.get('GMAIL_USER')
 EMAIL_HOST_PASSWORD = os.environ.get('GMAIL_APP_PASSWORD')
 DEFAULT_FROM_EMAIL = EMAIL_HOST_USER
 
-# --- Configurações do Backblaze B2 (Substituindo o R2) ---
+# --- Configurações do Backblaze B2 ---
 
-# Novas variáveis de ambiente para B2
 AWS_ACCESS_KEY_ID = os.environ.get('B2_ACCESS_KEY_ID')
 AWS_SECRET_ACCESS_KEY = os.environ.get('B2_SECRET_ACCESS_KEY')
 AWS_STORAGE_BUCKET_NAME = os.environ.get('B2_BUCKET_NAME')
 B2_ENDPOINT = os.environ.get('B2_ENDPOINT') # Ex: s3.us-east-005.backblazeb2.com
-B2_REGION = os.environ.get('B2_REGION_NAME') # Ex: us-east-005
+B2_REGION = os.environ.get('B2_REGION_NAME') # Ex: us-east-005 (o nome da região B2)
 
-# Endpoint da API (para upload)
+# O endpoint que o Boto3 usa para fazer requisições (uploads, etc.)
 AWS_S3_ENDPOINT_URL = f"https://{B2_ENDPOINT}"
 
-# Domínio Público (para exibição)
+# O domínio personalizado para acesso público aos arquivos.
+# O B2 usa um formato específico para URLs amigáveis:
+# bucket-name.s3.region-code.backblazeb2.com (se for um endpoint do tipo S3)
+# OU, se você configurou um CNAME no Cloudflare para o seu bucket
+# (o que você provavelmente fez para o R2, mas estamos usando o B2 agora):
+# files.docelarms.com.br (se você apontou esse CNAME para a URL amigável do B2)
+
+# VAMOS USAR O DOMÍNIO AMIGÁVEL DIRETO DO B2 (sem Cloudflare para simplificar)
+# Formato: https://f005.backblazeb2.com/file/seu-nome-de-bucket/
+# OU: https://seu-nome-de-bucket.s3.REGION.backblazeb2.com/ (se o endpoint S3 for usado)
+# Baseado na sua configuração anterior, vamos assumir que B2_ENDPOINT já é o endpoint S3.
+# Se B2_ENDPOINT for 's3.us-east-005.backblazeb2.com', então a URL base para o bucket é 'seu-bucket-name.s3.us-east-005.backblazeb2.com'
 AWS_S3_CUSTOM_DOMAIN = f"{AWS_STORAGE_BUCKET_NAME}.{B2_ENDPOINT}"
 
-# Configurações Adicionais
 AWS_S3_REGION_NAME = B2_REGION
 AWS_S3_SIGNATURE_VERSION = 's3v4'
 AWS_S3_FILE_OVERWRITE = False
-AWS_DEFAULT_ACL = 'public-read'
+AWS_DEFAULT_ACL = 'public-read' # Essencial para buckets públicos
 AWS_QUERYSTRING_AUTH = False 
-AWS_S3_ADDRESSING_STYLE = 'virtual'
+AWS_S3_ADDRESSING_STYLE = 'virtual' # B2 usa estilo 'virtual' (bucket.endpoint.com)
 
 # --- Lógica de ARMAZENAMENTO E MEDIA (CORRIGIDA) ---
 if DEBUG:
@@ -153,10 +162,14 @@ else:
     # ATIVA O ARMAZENAMENTO DO S3/B2
     DEFAULT_FILE_STORAGE = 'storages.backends.s3boto3.S3Boto3Storage'
     
-    # Define a pasta raiz dentro do bucket
+    # Define a pasta raiz dentro do bucket (se usarmos)
     AWS_LOCATION = 'media'
     
     # Define a URL de exibição
-    MEDIA_URL = f"https://{AWS_S3_CUSTOM_DOMAIN}/{AWS_LOCATION}/"
-    MEDIA_ROOT = BASE_DIR / 'media'
+    # A URL para arquivos no B2 é: https://[B2_BUCKET_NAME].[B2_ENDPOINT]/[AWS_LOCATION]/[nome_do_arquivo]
+    # Se você quiser o caminho completo como no S3:
+    MEDIA_URL = f"https://{AWS_STORAGE_BUCKET_NAME}.{B2_ENDPOINT}/{AWS_LOCATION}/"
+    # Certifique-se de que B2_ENDPOINT não inclui "https://"
+    
+    MEDIA_ROOT = BASE_DIR / 'media' # Ainda aponta para a pasta local, mas não será usada em prod
 # ----------------------------------------------------------------
