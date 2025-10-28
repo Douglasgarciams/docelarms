@@ -162,44 +162,57 @@ print(f"AWS_S3_CUSTOM_DOMAIN (final): {AWS_S3_CUSTOM_DOMAIN}")
 print(f"MEDIA_URL (final): {MEDIA_URL}")
 print("--- FIM DO DEBUG DE STORAGE B2 ---")
 
-# --- LOGGING (COM BOTOCORE DEBUG ADICIONADO) ---
+# Em settings.py
+
+# --- LOGGING (VERSÃO MAIS DETALHADA) ---
 LOGGING = {
     "version": 1,
     "disable_existing_loggers": False,
-    "formatters": { # Adiciona um formatador para incluir o nome do logger
+    "formatters": {
         "verbose": {
-            "format": "{levelname} {asctime} {name} {message}",
+            # Adiciona mais detalhes como nome do logger, processo, thread
+            "format": "{levelname} {asctime} {name} [{process:d}:{thread:d}] {message}",
             "style": "{",
         },
     },
     "handlers": {
         "console": {
             "class": "logging.StreamHandler",
-            "formatter": "verbose", # Usa o formatador
+            "formatter": "verbose", # Usa o formatador detalhado
         },
     },
     "loggers": {
         "django": {
             "handlers": ["console"],
-            "level": "INFO", # Pode diminuir o DEBUG do Django para focar no Boto
-            "propagate": False,
+            "level": "INFO", # Mantém os logs do Django mais limpos
+            "propagate": False, # Evita duplicar logs no root
         },
         "storages": { # Logger do django-storages
             "handlers": ["console"],
             "level": "DEBUG",
             "propagate": False,
         },
-         # --- ADICIONE ESTE LOGGER ---
         "botocore": { # Logger principal do Boto3/Botocore
+             "handlers": ["console"],
+             "level": "DEBUG", # Captura tudo do botocore
+             "propagate": False,
+         },
+         "boto3": { # Às vezes logs aparecem aqui também
              "handlers": ["console"],
              "level": "DEBUG",
              "propagate": False,
          },
-         # --------------------------
+         "urllib3": { # Logs de conexão de rede (úteis para S3/B2)
+            "handlers": ["console"],
+            "level": "DEBUG",
+            "propagate": False,
+         }
     },
-    "root": { # Captura logs de outras bibliotecas, se necessário
+    # ATENÇÃO: Configura o logger raiz para DEBUG temporariamente
+    # Isso pode gerar MUITOS logs, mas deve capturar tudo
+    "root": {
         "handlers": ["console"],
-        "level": "INFO",
+        "level": "DEBUG",
     },
 }
 # --- FIM DA SEÇÃO LOGGING ---
