@@ -1,4 +1,5 @@
 {% extends 'base.html' %}
+{% load humanize %}
 
 {% block title %}Encontre o Imóvel dos Seus Sonhos{% endblock %}
 
@@ -26,7 +27,7 @@
                     </select>
                 </div>
                 <div class="col-md-3">
-                    <select name="bairro" id="hero_bairro" class="form-select form-select-lg">
+                    <select name="bairro" id="hero_bairro" class="form-select form-select-lg" disabled>
                         <option value="">Bairro</option>
                         </select>
                 </div>
@@ -37,6 +38,29 @@
         </div>
     </div>
 </div>
+
+{% if imobiliaria_selecionada %}
+<div class="container mb-4 mt-5">
+    <div class="card shadow-sm">
+        <div class="card-header bg-primary text-white">
+            Imóveis da <strong>{{ imobiliaria_selecionada.nome }}</strong>
+        </div>
+        <div class="card-body">
+            <p class="card-text mb-0">
+                {% if imobiliaria_selecionada.telefone %}
+                    <strong>Telefone:</strong> {{ imobiliaria_selecionada.telefone }}
+                {% endif %}
+                {% if imobiliaria_selecionada.telefone_secundario %}
+                    | <strong>WhatsApp:</strong> {{ imobiliaria_selecionada.telefone_secundario }}
+                {% endif %}
+                {% if imobiliaria_selecionada.site %}
+                    | <strong>Site:</strong> <a href="{{ imobiliaria_selecionada.site }}" target="_blank">Acessar</a>
+                {% endif %}
+            </p>
+        </div>
+    </div>
+</div>
+{% endif %}
 
 <div class="container mt-5">
     <div class="row">
@@ -66,7 +90,7 @@
 
                     <div class="mb-3">
                         <label class="form-label">Bairro</label>
-                        <select name="bairro" id="sidebar_bairro" class="form-select">
+                        <select name="bairro" id="sidebar_bairro" class="form-select" disabled>
                             <option value="">Todos os bairros</option>
                             </select>
                     </div>
@@ -149,7 +173,7 @@
                             <div class="card-body">
                                 <p class="text-muted mb-1"><small>{{ imovel.cidade.nome }}</small></p>
                                 <h5 class="card-title mb-2" style="font-size: 0.9rem;">{{ imovel.titulo|truncatechars:35 }}</h5>
-                                <p class="card-text fs-5 fw-bold mb-2" style="color: var(--cor-primaria);">R$ {{ imovel.preco|floatformat:2 }}</p>
+                                <p class="card-text fs-5 fw-bold mb-2" style="color: var(--cor-primaria);">R$ {{ imovel.preco|floatformat:2|intcomma }}</p>
                                 
                                 <div class="card-features border-top pt-2 mt-2" style="gap: 1rem; font-size: 0.8rem;">
                                     <span title="Quartos"><i class="bi bi-door-open-fill"></i> {{ imovel.quartos }}</span>
@@ -202,16 +226,19 @@
 
 {% endblock %}
 
+
 {% block extra_js %}
 <script>
     document.addEventListener('DOMContentLoaded', function() {
         
+        // Passa o valor do filtro de bairro do Django para o JavaScript
+        const bairroFiltradoId = "{{ valores_filtro.bairro|default_if_none:'' }}";
+
         // Função genérica para configurar os dropdowns de cidade/bairro
         function configurarDropdownBairros(idCidadeSelect, idBairroSelect) {
             const cidadeSelect = document.getElementById(idCidadeSelect);
             const bairroSelect = document.getElementById(idBairroSelect);
             
-            // Se não encontrou os elementos na página, não faz nada
             if (!cidadeSelect || !bairroSelect) return;
 
             // Função para carregar os bairros
@@ -223,7 +250,7 @@
                 }
 
                 bairroSelect.disabled = false;
-                // Mantém o texto de carregamento visível apenas se for uma mudança manual
+                // Mostra "Carregando..." apenas se não estivermos pré-selecionando um valor
                 if (!bairroSelecionadoId) {
                      bairroSelect.innerHTML = '<option value="">Carregando...</option>';
                 }
@@ -233,9 +260,8 @@
                     .then(data => {
                         bairroSelect.innerHTML = '<option value="">Bairro</option>';
                         data.forEach(function(bairro) {
-                            // Cria a opção
                             const option = new Option(bairro.nome, bairro.id);
-                            // Se este for o bairro que já estava selecionado (vindo do filtro), marca como selected
+                            // Verifica se o ID do bairro atual é o mesmo que o bairro filtrado
                             if (bairro.id == bairroSelecionadoId) {
                                 option.selected = true;
                             }
@@ -246,25 +272,16 @@
 
             // Evento de mudança na cidade
             cidadeSelect.addEventListener('change', function() {
-                carregarBairros(this.value);
+                // Ao mudar a cidade manualmente, não passamos um bairro pré-selecionado
+                carregarBairros(this.value, null);
             });
 
-            // Na carga inicial da página, verifica se já tem uma cidade selecionada (ex: veio de um filtro)
-            // e carrega os bairros correspondentes, mantendo o bairro selecionado se houver.
+            // Carga Inicial: Carrega os bairros para a cidade já selecionada (se houver)
             const cidadeInicial = cidadeSelect.value;
-            // Tenta pegar o valor inicial do bairro a partir de um atributo data ou do próprio valor se já estiver renderizado (depende de como o backend envia)
-            // Uma forma mais simples aqui é pegar o valor que o Django renderizou se possível, mas como estamos recarregando via JS, vamos passar o valor do filtro via template Django direto no JS.
-            
-            // Truque: pegamos o valor do bairro que veio do filtro (se houver)
-            let bairroInicial = null;
-            {% if valores_filtro.bairro %}
-                bairroInicial = "{{ valores_filtro.bairro }}";
-            {% endif %}
-
             if (cidadeInicial) {
-                 carregarBairros(cidadeInicial, bairroInicial);
+                 carregarBairros(cidadeInicial, bairroFiltradoId);
             } else {
-                 bairroSelect.disabled = true; // Desabilita bairro se não tem cidade
+                 bairroSelect.disabled = true;
             }
         }
 
