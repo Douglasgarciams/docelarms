@@ -127,20 +127,29 @@ AWS_STORAGE_BUCKET_NAME = os.environ.get('CLOUDFLARE_R2_BUCKET_NAME')
 CLOUDFLARE_ACCOUNT_ID = os.environ.get('CLOUDFLARE_R2_ACCOUNT_ID')
 
 # 1. ENDPOINT DA API S3 (Para Boto3 fazer o upload)
-# Esta é a URL que o boto3 usará para se conectar.
 AWS_S3_ENDPOINT_URL = f"https://{CLOUDFLARE_ACCOUNT_ID}.r2.cloudflarestorage.com"
 
 # 2. DOMÍNIO PÚBLICO (Para o navegador exibir a imagem)
-# Cole sua URL pública (pub-....r2.dev) aqui, SEM https:// e SEM a barra / no final
-R2_PUBLIC_DOMAIN = 'pub-b06bb61e03d3434889f102b1a56ce95d.r2.dev' # <<< SUBSTITUA PELO SEU DOMÍNIO PÚBLICO
-AWS_S3_CUSTOM_DOMAIN = R2_PUBLIC_DOMAIN # Informa ao django-storages
+R2_PUBLIC_DOMAIN = 'pub-b06bb61e03d3434889f102b1a56ce95d.r2.dev' # Sua URL Pública (sem https://)
+AWS_S3_CUSTOM_DOMAIN = R2_PUBLIC_DOMAIN 
 
 # Configurações Adicionais
 AWS_S3_REGION_NAME = 'auto'
 AWS_S3_SIGNATURE_VERSION = 's3v4'
 AWS_S3_FILE_OVERWRITE = False
-AWS_DEFAULT_ACL = None 
-AWS_QUERYSTRING_AUTH = False # URLs são públicas
+AWS_DEFAULT_ACL = None
+AWS_QUERYSTRING_AUTH = False 
+
+# --- CONFIGURAÇÃO EXPLÍCITA PARA O BOTO3 ---
+# Esta é a nova parte. Ela força o boto3 a usar as configurações corretas
+# para o endpoint, em vez de tentar adivinhar (o que pode falhar)
+AWS_S3_CLIENT_CONFIG = {
+    'endpoint_url': AWS_S3_ENDPOINT_URL,
+    'region_name': AWS_S3_REGION_NAME,
+    'signature_version': AWS_S3_SIGNATURE_VERSION,
+}
+AWS_S3_ADDRESSING_STYLE = 'auto' # 'auto' ou 'path' podem ser necessários
+# ---------------------------------------------
 
 # Define o backend de armazenamento padrão para arquivos de mídia
 DEFAULT_FILE_STORAGE = 'storages.backends.s3boto3.S3Boto3Storage'
@@ -152,12 +161,7 @@ if DEBUG:
     MEDIA_ROOT = BASE_DIR / 'media'
 else:
     # Produção (Render): Usa a URL Pública do R2
-    
-    # *** LINHA CRUCIAL ***
-    # Diz ao django-storages para salvar todos os uploads na pasta /media/
     AWS_LOCATION = 'media'
-    
-    # A URL agora será: https://<dominio_publico>/media/
     MEDIA_URL = f"https://{AWS_S3_CUSTOM_DOMAIN}/{AWS_LOCATION}/"
-    MEDIA_ROOT = BASE_DIR / 'media' 
+    MEDIA_ROOT = BASE_DIR / 'media'
 # ----------------------------------------------------------------
