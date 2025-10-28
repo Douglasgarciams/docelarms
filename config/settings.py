@@ -118,11 +118,7 @@ EMAIL_HOST_USER = os.environ.get('GMAIL_USER')
 EMAIL_HOST_PASSWORD = os.environ.get('GMAIL_APP_PASSWORD')
 DEFAULT_FROM_EMAIL = EMAIL_HOST_USER
 
-# --- Cloudflare R2 Settings ---
-# config/settings.py
-# ... (no final do arquivo) ...
-
-# --- Configurações do Cloudflare R2 para django-storages (VERSÃO REVISADA) ---
+# --- Configurações do Cloudflare R2 para django-storages (VERSÃO FINAL CORRIGIDA) ---
 
 # Credenciais (Lidas do Ambiente)
 AWS_ACCESS_KEY_ID = os.environ.get('CLOUDFLARE_R2_ACCESS_KEY_ID')
@@ -134,8 +130,7 @@ CLOUDFLARE_ACCOUNT_ID = os.environ.get('CLOUDFLARE_R2_ACCOUNT_ID')
 AWS_S3_ENDPOINT_URL = f"https://{CLOUDFLARE_ACCOUNT_ID}.r2.cloudflarestorage.com"
 
 # 2. DOMÍNIO PÚBLICO (Para o navegador exibir a imagem)
-#    Substitua 'pub-xxxxxxxxxxxx.r2.dev' pela URL Pública que você copiou!
-R2_PUBLIC_DOMAIN = 'pub-b06bb61e03d3434889f102b1a56ce95d.r2.dev' # <<< COLOQUE SUA URL PÚBLICA AQUI
+R2_PUBLIC_DOMAIN = 'pub-b06bb61e03d3434889f102b1a56ce95d.r2.dev' # Sua URL Pública
 AWS_S3_CUSTOM_DOMAIN = R2_PUBLIC_DOMAIN # Informa ao django-storages
 
 # Configurações Adicionais da AWS/S3
@@ -143,7 +138,7 @@ AWS_S3_REGION_NAME = 'auto'
 AWS_S3_SIGNATURE_VERSION = 's3v4'
 AWS_S3_FILE_OVERWRITE = False
 AWS_DEFAULT_ACL = None
-AWS_QUERYSTRING_AUTH = False # URLs públicas, já que o bucket é público
+AWS_QUERYSTRING_AUTH = False 
 
 # Define o backend de armazenamento padrão para arquivos de mídia
 DEFAULT_FILE_STORAGE = 'storages.backends.s3boto3.S3Boto3Storage'
@@ -155,6 +150,12 @@ if DEBUG:
     MEDIA_ROOT = BASE_DIR / 'media'
 else:
     # Produção (Render): Usa a URL Pública do R2
-    MEDIA_URL = f"https://{R2_PUBLIC_DOMAIN}/media/"
+    
+    # *** LINHA CRUCIAL ADICIONADA AQUI ***
+    # Diz ao django-storages para salvar todos os uploads de mídia na pasta /media/ do bucket
+    AWS_LOCATION = 'media'
+    
+    # A URL agora será: https://<dominio_publico>/media/
+    MEDIA_URL = f"https://{AWS_S3_CUSTOM_DOMAIN}/{AWS_LOCATION}/"
     MEDIA_ROOT = BASE_DIR / 'media'
 # ----------------------------------------------------------------
