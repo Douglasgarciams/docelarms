@@ -135,7 +135,7 @@ AWS_S3_ENDPOINT_URL = f"https://{CLOUDFLARE_ACCOUNT_ID}.r2.cloudflarestorage.com
 
 # 2. DOMÍNIO PÚBLICO (Para o navegador exibir a imagem)
 #    Substitua 'pub-xxxxxxxxxxxx.r2.dev' pela URL Pública que você copiou!
-R2_PUBLIC_DOMAIN = 'https://pub-b06bb61e03d3434889f102b1a56ce95d.r2.dev' # <<< COLOQUE SUA URL PÚBLICA AQUI
+R2_PUBLIC_DOMAIN = 'pub-b06bb61e03d3434889f102b1a56ce95d.r2.dev' # <<< COLOQUE SUA URL PÚBLICA AQUI
 AWS_S3_CUSTOM_DOMAIN = R2_PUBLIC_DOMAIN # Informa ao django-storages
 
 # Configurações Adicionais da AWS/S3
