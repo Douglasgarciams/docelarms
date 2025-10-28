@@ -118,22 +118,30 @@ EMAIL_HOST_USER = os.environ.get('GMAIL_USER')
 EMAIL_HOST_PASSWORD = os.environ.get('GMAIL_APP_PASSWORD')
 DEFAULT_FROM_EMAIL = EMAIL_HOST_USER
 
-# --- Configurações do Backblaze B2 ---
+# --- Configurações do Backblaze B2 (CORRIGIDO PARA PATH STYLE) ---
+
 AWS_ACCESS_KEY_ID = os.environ.get('B2_ACCESS_KEY_ID')
 AWS_SECRET_ACCESS_KEY = os.environ.get('B2_SECRET_ACCESS_KEY')
 AWS_STORAGE_BUCKET_NAME = os.environ.get('B2_BUCKET_NAME')
 B2_ENDPOINT = os.environ.get('B2_ENDPOINT')
 B2_REGION = os.environ.get('B2_REGION_NAME')
 
+# Endpoint da API (para upload)
 AWS_S3_ENDPOINT_URL = f"https://{B2_ENDPOINT}"
-AWS_S3_CUSTOM_DOMAIN = f"{AWS_STORAGE_BUCKET_NAME}.{B2_ENDPOINT}"
+
+# Domínio Público (NÃO USAMOS CUSTOM DOMAIN)
+AWS_S3_CUSTOM_DOMAIN = None # <--- CORRIGIDO
+
+# Configurações Adicionais
 AWS_S3_REGION_NAME = B2_REGION
 AWS_S3_SIGNATURE_VERSION = 's3v4'
 AWS_S3_FILE_OVERWRITE = False
 AWS_DEFAULT_ACL = 'public-read'
 AWS_QUERYSTRING_AUTH = False 
-AWS_S3_ADDRESSING_STYLE = 'virtual'
 
+# *** A MUDANÇA MAIS IMPORTANTE ***
+# Força o Boto3 a usar o formato "path style" (endpoint.com/bucket/arquivo)
+AWS_S3_ADDRESSING_STYLE = 'path' 
 
 # --- Lógica de ARMAZENAMENTO E MEDIA (CORRIGIDA) ---
 if DEBUG:
@@ -144,11 +152,13 @@ if DEBUG:
 else:
     # --- PRODUÇÃO (RENDER) ---
     
-    # *** LINHA CRUCIAL CORRIGIDA ***
-    # Ativa o armazenamento do S3/B2 em produção
+    # *** ATIVA O ARMAZENAMENTO DO B2 ***
     DEFAULT_FILE_STORAGE = 'storages.backends.s3boto3.S3Boto3Storage'
     
     AWS_LOCATION = 'media' # Salva tudo na pasta /media/
-    MEDIA_URL = f"https://{AWS_S3_CUSTOM_DOMAIN}/{AWS_LOCATION}/"
+    
+    # *** A URL de exibição é construída manualmente no formato "path style" ***
+    # Ex: https://s3.us-east-005.backblazeb2.com/docelarms-media-b2/media/
+    MEDIA_URL = f"https{AWS_S3_ENDPOINT_URL}/{AWS_STORAGE_BUCKET_NAME}/{AWS_LOCATION}/"
     MEDIA_ROOT = BASE_DIR / 'media'
 # ----------------------------------------------------------------
