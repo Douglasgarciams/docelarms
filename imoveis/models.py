@@ -30,37 +30,46 @@ class Imovel(models.Model):
     class Finalidade(models.TextChoices):
         VENDA = 'VENDA', 'Venda'
         ALUGUEL = 'ALUGUEL', 'Aluguel'
+
+    # --- TODOS OS CAMPOS AGORA SÃO OPCIONAIS (null=True, blank=True) ---
     
-    # ... (todos os seus campos de Imovel) ...
-    finalidade = models.CharField(max_length=10, choices=Finalidade.choices, default=Finalidade.VENDA, verbose_name="Finalidade (Venda/Aluguel)")
+    finalidade = models.CharField(
+        max_length=10, choices=Finalidade.choices, default=Finalidade.VENDA,
+        verbose_name="Finalidade (Venda/Aluguel)", null=True, blank=True
+    )
     destaque = models.BooleanField(default=False, verbose_name="Destaque?")
     aprovado = models.BooleanField(default=False, verbose_name="Aprovado?")
-    proprietario = models.ForeignKey(User, on_delete=models.CASCADE) 
-    cidade = models.ForeignKey(Cidade, on_delete=models.SET_NULL, null=True, verbose_name="Cidade")
+    
+    proprietario = models.ForeignKey(User, on_delete=models.CASCADE) # Este é o único obrigatório (definido na view)
+    cidade = models.ForeignKey(Cidade, on_delete=models.SET_NULL, null=True, blank=True, verbose_name="Cidade")
     bairro = models.ForeignKey(Bairro, on_delete=models.SET_NULL, null=True, blank=True, verbose_name="Bairro")
     imobiliaria = models.ForeignKey(Imobiliaria, on_delete=models.SET_NULL, null=True, blank=True, verbose_name="Imobiliária/Anunciante")
-    titulo = models.CharField(max_length=100, verbose_name="Título do Anúncio")
-    descricao = models.TextField(verbose_name="Descrição Completa")
-    endereco = models.CharField(max_length=255, help_text="Apenas Rua e Número", verbose_name="Endereço (Rua, Número)")
-    preco = models.DecimalField(max_digits=12, decimal_places=2, help_text="Preço (R$) ou Aluguel Mensal", verbose_name="Preço (R$)")
+    
+    titulo = models.CharField(max_length=100, verbose_name="Título do Anúncio", null=True, blank=True)
+    descricao = models.TextField(verbose_name="Descrição Completa", null=True, blank=True)
+    endereco = models.CharField(max_length=255, help_text="Apenas Rua e Número", verbose_name="Endereço (Rua, Número)", null=True, blank=True)
+    preco = models.DecimalField(max_digits=12, decimal_places=2, help_text="Preço (R$) ou Aluguel Mensal", verbose_name="Preço (R$)", null=True, blank=True)
     telefone_contato = models.CharField(max_length=20, null=True, blank=True, verbose_name="Telefone para Contato Direto")
-    quartos = models.PositiveIntegerField(verbose_name="Nº de Quartos")
-    suites = models.PositiveIntegerField(default=0, verbose_name="Nº de Suítes")
-    banheiros = models.PositiveIntegerField(verbose_name="Nº de Banheiros")
-    salas = models.PositiveIntegerField(default=0, verbose_name="Nº de Salas")
-    cozinhas = models.PositiveIntegerField(default=0, verbose_name="Nº de Cozinhas")
-    closets = models.PositiveIntegerField(default=0, verbose_name="Nº de Closets")
-    area = models.PositiveIntegerField(help_text="Em metros quadrados (m²)", verbose_name="Área (m²)")
+    
+    quartos = models.PositiveIntegerField(verbose_name="Nº de Quartos", null=True, blank=True, default=0)
+    suites = models.PositiveIntegerField(default=0, verbose_name="Nº de Suítes", null=True, blank=True)
+    banheiros = models.PositiveIntegerField(verbose_name="Nº de Banheiros", null=True, blank=True, default=0)
+    salas = models.PositiveIntegerField(default=0, verbose_name="Nº de Salas", null=True, blank=True)
+    cozinhas = models.PositiveIntegerField(default=0, verbose_name="Nº de Cozinhas", null=True, blank=True)
+    closets = models.PositiveIntegerField(default=0, verbose_name="Nº de Closets", null=True, blank=True)
+    area = models.PositiveIntegerField(help_text="Em metros quadrados (m²)", verbose_name="Área (m²)", null=True, blank=True, default=0)
     foto_principal = models.ImageField(upload_to='fotos_imoveis/', null=True, blank=True, verbose_name="Foto Principal")
     data_cadastro = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
-        return self.titulo
+        if self.titulo:
+            return self.titulo
+        return f"Imóvel ID {self.id}" # Fallback se o título estiver vazio
     
     # MÉTODO SAVE CUSTOMIZADO REMOVIDO
 
 class Foto(models.Model):
     imovel = models.ForeignKey(Imovel, related_name='fotos', on_delete=models.CASCADE)
     imagem = models.ImageField(upload_to='fotos_galeria/')
-    def __str__(self): return f"Foto de {self.imovel.titulo}"
+    def __str__(self): return f"Foto de {self.imovel.titulo or self.imovel.id}"
     # MÉTODO SAVE CUSTOMIZADO REMOVIDO
