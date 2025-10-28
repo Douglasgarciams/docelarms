@@ -95,9 +95,7 @@ USE_L10N = True
 USE_THOUSAND_SEPARATOR = True
 USE_TZ = True
 
-# --- ARQUIVOS ESTÁTICOS (STATIC FILES) ---
-# Usado para CSS, JS, imagens do SEU SITE (layout, logo, etc.)
-# Servido pelo WhiteNoise em produção.
+# Static files (Configured for WhiteNoise)
 STATIC_URL = 'static/'
 STATICFILES_DIRS = [BASE_DIR / 'static'] 
 STATIC_ROOT = BASE_DIR / 'staticfiles'
@@ -120,41 +118,41 @@ EMAIL_HOST_USER = os.environ.get('GMAIL_USER')
 EMAIL_HOST_PASSWORD = os.environ.get('GMAIL_APP_PASSWORD')
 DEFAULT_FROM_EMAIL = EMAIL_HOST_USER
 
-# --- ARQUIVOS DE MÍDIA (MEDIA FILES) E ARMAZENAMENTO EXTERNO (R2) ---
-# Usado para uploads dos usuários (fotos de imóveis).
+# --- Configurações do Backblaze B2 (Substituindo o R2) ---
 
+# Novas variáveis de ambiente para B2
+AWS_ACCESS_KEY_ID = os.environ.get('B2_ACCESS_KEY_ID')
+AWS_SECRET_ACCESS_KEY = os.environ.get('B2_SECRET_ACCESS_KEY')
+AWS_STORAGE_BUCKET_NAME = os.environ.get('B2_BUCKET_NAME')
+B2_ENDPOINT = os.environ.get('B2_ENDPOINT') # Ex: s3.us-east-005.backblazeb2.com
+B2_REGION = os.environ.get('B2_REGION_NAME') # Ex: us-east-005
+
+# Endpoint da API (para upload)
+AWS_S3_ENDPOINT_URL = f"https://{B2_ENDPOINT}"
+
+# Domínio Público (para exibição)
+# O B2 usa o formato: https://[nome-do-bucket].[endpoint]
+AWS_S3_CUSTOM_DOMAIN = f"{AWS_STORAGE_BUCKET_NAME}.{B2_ENDPOINT}"
+
+# Configurações Adicionais
+AWS_S3_REGION_NAME = B2_REGION
+AWS_S3_SIGNATURE_VERSION = 's3v4' # B2 usa s3v4
+AWS_S3_FILE_OVERWRITE = False
+AWS_DEFAULT_ACL = 'public-read' # Essencial para buckets públicos
+AWS_QUERYSTRING_AUTH = False 
+AWS_S3_ADDRESSING_STYLE = 'virtual' # B2 usa estilo 'virtual' (bucket.endpoint.com)
+
+# Define o backend de armazenamento padrão
+DEFAULT_FILE_STORAGE = 'storages.backends.s3boto3.S3Boto3Storage'
+
+# --- Lógica de MEDIA_URL ATUALIZADA ---
 if DEBUG:
-    # --- CONFIGURAÇÃO DE DESENVOLVIMENTO LOCAL ---
+    # Desenvolvimento Local
     MEDIA_URL = '/media/'
     MEDIA_ROOT = BASE_DIR / 'media'
-    DEFAULT_FILE_STORAGE = 'django.core.files.storage.FileSystemStorage'
-
 else:
-    # --- CONFIGURAÇÃO DE PRODUÇÃO (RENDER) ---
-    
-    # Credenciais
-    AWS_ACCESS_KEY_ID = os.environ.get('CLOUDFLARE_R2_ACCESS_KEY_ID')
-    AWS_SECRET_ACCESS_KEY = os.environ.get('CLOUDFLARE_R2_SECRET_ACCESS_KEY')
-    AWS_STORAGE_BUCKET_NAME = os.environ.get('CLOUDFLARE_R2_BUCKET_NAME')
-    CLOUDFLARE_ACCOUNT_ID = os.environ.get('CLOUDFLARE_R2_ACCOUNT_ID')
-
-    # Endpoint da API (Para Upload E Exibição)
-    AWS_S3_ENDPOINT_URL = f"https://{CLOUDFLARE_ACCOUNT_ID}.r2.cloudflarestorage.com"
-    
-    # Configurações Essenciais
-    AWS_S3_REGION_NAME = 'auto'
-    AWS_S3_SIGNATURE_VERSION = 's3v4'
-    AWS_S3_FILE_OVERWRITE = False
-    AWS_DEFAULT_ACL = 'public-read' # Garante que novos uploads sejam públicos
-    AWS_QUERYSTRING_AUTH = False # Não usa URLs assinadas
-
-    # Removemos AWS_S3_CUSTOM_DOMAIN, AWS_LOCATION, AWS_S3_CLIENT_CONFIG, AWS_S3_ADDRESSING_STYLE
-    
-    # Define o backend de armazenamento padrão
-    DEFAULT_FILE_STORAGE = 'storages.backends.s3boto3.S3Boto3Storage'
-
-    # URL de Mídia (o django-storages deve construir isso automaticamente)
-    # A pasta 'media' virá do upload_to='fotos_imoveis/' etc.
-    MEDIA_URL = f"{AWS_S3_ENDPOINT_URL}/{AWS_STORAGE_BUCKET_NAME}/"
+    # Produção (Render): Usa a URL Pública do B2
+    AWS_LOCATION = 'media' # Salva tudo na pasta /media/ (conforme o prefixo da chave)
+    MEDIA_URL = f"https://{AWS_S3_CUSTOM_DOMAIN}/{AWS_LOCATION}/"
     MEDIA_ROOT = BASE_DIR / 'media'
 # ----------------------------------------------------------------
