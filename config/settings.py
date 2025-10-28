@@ -131,28 +131,32 @@ B2_REGION = os.environ.get('B2_REGION_NAME') # Ex: us-east-005
 AWS_S3_ENDPOINT_URL = f"https://{B2_ENDPOINT}"
 
 # Domínio Público (para exibição)
-# O B2 usa o formato: https://[nome-do-bucket].[endpoint]
 AWS_S3_CUSTOM_DOMAIN = f"{AWS_STORAGE_BUCKET_NAME}.{B2_ENDPOINT}"
 
 # Configurações Adicionais
 AWS_S3_REGION_NAME = B2_REGION
-AWS_S3_SIGNATURE_VERSION = 's3v4' # B2 usa s3v4
+AWS_S3_SIGNATURE_VERSION = 's3v4'
 AWS_S3_FILE_OVERWRITE = False
-AWS_DEFAULT_ACL = 'public-read' # Essencial para buckets públicos
+AWS_DEFAULT_ACL = 'public-read'
 AWS_QUERYSTRING_AUTH = False 
-AWS_S3_ADDRESSING_STYLE = 'virtual' # B2 usa estilo 'virtual' (bucket.endpoint.com)
+AWS_S3_ADDRESSING_STYLE = 'virtual'
 
-# Define o backend de armazenamento padrão
-# DEFAULT_FILE_STORAGE = 'storages.backends.s3boto3.S3Boto3Storage'
-
-# --- Lógica de MEDIA_URL ATUALIZADA ---
+# --- Lógica de ARMAZENAMENTO E MEDIA (CORRIGIDA) ---
 if DEBUG:
-    # Desenvolvimento Local
+    # --- DESENVOLVIMENTO LOCAL ---
     MEDIA_URL = '/media/'
     MEDIA_ROOT = BASE_DIR / 'media'
+    DEFAULT_FILE_STORAGE = 'django.core.files.storage.FileSystemStorage'
 else:
-    # Produção (Render): Usa a URL Pública do B2
-    AWS_LOCATION = 'media' # Salva tudo na pasta /media/ (conforme o prefixo da chave)
-    # MEDIA_URL = f"https://{AWS_S3_CUSTOM_DOMAIN}/{AWS_LOCATION}/"
-    MEDIA_URL = f"https://{AWS_S3_CUSTOM_DOMAIN}/"
+    # --- PRODUÇÃO (RENDER) ---
+    
+    # ATIVA O ARMAZENAMENTO DO S3/B2
+    DEFAULT_FILE_STORAGE = 'storages.backends.s3boto3.S3Boto3Storage'
+    
+    # Define a pasta raiz dentro do bucket
+    AWS_LOCATION = 'media'
+    
+    # Define a URL de exibição
+    MEDIA_URL = f"https://{AWS_S3_CUSTOM_DOMAIN}/{AWS_LOCATION}/"
+    MEDIA_ROOT = BASE_DIR / 'media'
 # ----------------------------------------------------------------
