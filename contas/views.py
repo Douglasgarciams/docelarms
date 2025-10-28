@@ -7,21 +7,21 @@ from imoveis.models import Imovel, Foto
 from imoveis.forms import ImovelForm
 from django.contrib.auth import update_session_auth_hash
 
-# --- NOVAS IMPORTAÇÕES PARA UPLOAD MANUAL ---
+# --- IMPORTAÇÕES ADICIONADAS PARA O UPLOAD MANUAL BOTO3 ---
 import boto3
 import os
 import traceback
 from django.conf import settings
-# ---------------------------------------------
+from io import BytesIO
+# -----------------------------------------------------------
 
-# --- FUNÇÃO HELPER PARA UPLOAD MANUAL ---
-# Esta função fará o upload usando boto3 puro, que sabemos que funciona
+# --- FUNÇÃO HELPER PARA UPLOAD MANUAL BOTO3 ---
 def upload_arquivo_para_b2(arquivo_em_memoria, nome_arquivo_no_bucket):
     """
     Usa boto3 puro para enviar um arquivo para o Backblaze B2.
     """
     try:
-        # Pega as credenciais diretamente (assim como no nosso teste)
+        # Pega as credenciais diretamente (como no nosso teste que funcionou)
         s3_client = boto3.client(
             's3',
             endpoint_url=f"https://{os.environ.get('B2_ENDPOINT')}",
@@ -36,20 +36,19 @@ def upload_arquivo_para_b2(arquivo_em_memoria, nome_arquivo_no_bucket):
         # Reposiciona o ponteiro do arquivo para o início
         arquivo_em_memoria.seek(0)
         
-        # Define o caminho completo dentro do bucket
-        # (settings.AWS_LOCATION é 'media', upload_to é 'fotos_imoveis/')
+        # Define o caminho completo dentro do bucket (conforme settings.py)
         caminho_completo = f"media/{nome_arquivo_no_bucket}"
         
         s3_client.put_object(
             Bucket=bucket_name,
-            Key=caminho_completo, # Salva em 'media/fotos_imoveis/arquivo.jpg'
+            Key=caminho_completo,
             Body=arquivo_em_memoria,
             ContentType=arquivo_em_memoria.content_type,
             ACL='public-read' # Garante que o arquivo seja público
         )
         print(f"Boto3 SUCESSO: Enviado {caminho_completo}")
         
-        # Retorna o caminho *sem* 'media/' pois o MEDIA_URL já cuida disso
+        # Retorna o caminho que será salvo no banco de dados
         return nome_arquivo_no_bucket
         
     except Exception as e:
@@ -84,7 +83,7 @@ def meus_imoveis(request):
     }
     return render(request, 'contas/meus_imoveis.html', contexto)
 
-# --- View "Anunciar Imóvel" (MODIFICADA) ---
+# --- View "Anunciar Imóvel" (MODIFICADA para Boto3) ---
 @login_required
 def anunciar_imovel(request):
     if request.method == 'POST':
@@ -93,30 +92,23 @@ def anunciar_imovel(request):
             imovel = form.save(commit=False)
             imovel.proprietario = request.user
             
-            # Removemos a foto do form por enquanto, para salvar o Imovel
             foto_principal = form.cleaned_data.get('foto_principal')
             imovel.foto_principal = None # Limpa temporariamente
 
-            # Salva o Imovel primeiro para ter um ID
-            imovel.save()
+            imovel.save() # Salva o Imovel primeiro para ter um ID
             
-            # --- LÓGICA DE UPLOAD MANUAL (FOTO PRINCIPAL) ---
             if foto_principal:
-                # Gera o caminho de upload que o modelo usaria
                 path_foto_principal = Imovel._meta.get_field('foto_principal').upload_to(imovel, foto_principal.name)
                 
                 caminho_salvo = upload_arquivo_para_b2(foto_principal, path_foto_principal)
                 if caminho_salvo:
-                    # Se o upload deu certo, salvamos o *caminho* no modelo
                     imovel.foto_principal.name = caminho_salvo
                     imovel.save() # Atualiza o Imovel com o caminho da foto
                 else:
                     messages.error(request, "Falha ao enviar a foto principal.")
-                    # Opcional: deletar o imóvel recém-criado
                     imovel.delete()
                     return render(request, 'contas/anunciar_imovel.html', {'form': form})
             
-            # --- LÓGICA DE UPLOAD MANUAL (GALERIA) ---
             fotos_galeria = request.FILES.getlist('fotos_galeria')
             fotos_com_falha = []
             for f in fotos_galeria:
@@ -124,7 +116,6 @@ def anunciar_imovel(request):
                 
                 caminho_foto_salva = upload_arquivo_para_b2(f, path_foto_galeria)
                 if caminho_foto_salva:
-                    # Se deu certo, cria o objeto Foto com o caminho
                     Foto.objects.create(imovel=imovel, imagem=caminho_foto_salva)
                 else:
                     fotos_com_falha.append(f.name)
@@ -140,7 +131,7 @@ def anunciar_imovel(request):
     
     return render(request, 'contas/anunciar_imovel.html', {'form': form})
 
-# --- View "Editar Imóvel" (MODIFICADA) ---
+# --- View "Editar Imóvel" (MODIFICADA para Boto3) ---
 @login_required
 def editar_imovel(request, imovel_id):
     imovel = get_object_or_404(Imovel, id=imovel_id, proprietario=request.user)
@@ -148,11 +139,8 @@ def editar_imovel(request, imovel_id):
     if request.method == 'POST':
         form = ImovelForm(request.POST, request.FILES, instance=imovel)
         if form.is_valid():
-            # O form.save() aqui SÓ ATUALIZARÁ os campos de texto/número
-            # porque não desativamos o django-storages completamente
             imovel_editado = form.save(commit=False)
             
-            # --- LÓGICA DE UPLOAD MANUAL (FOTO PRINCIPAL EDITADA) ---
             foto_principal = request.FILES.get('foto_principal')
             if foto_principal: # Se uma nova foto principal foi enviada
                 path_foto_principal = Imovel._meta.get_field('foto_principal').upload_to(imovel_editado, foto_principal.name)
@@ -164,11 +152,9 @@ def editar_imovel(request, imovel_id):
                     messages.error(request, "Falha ao enviar a nova foto principal.")
                     return render(request, 'contas/anunciar_imovel.html', {'form': form})
             
-            # Salva o imóvel (com a nova foto principal, se houver)
             imovel_editado.save()
-            form.save_m2m() # Salva relacionamentos ManyToMany (se houver)
+            form.save_m2m()
             
-            # --- LÓGICA DE UPLOAD MANUAL (GALERIA EDITADA) ---
             fotos_galeria = request.FILES.getlist('fotos_galeria')
             fotos_com_falha = []
             for f in fotos_galeria:
@@ -196,6 +182,7 @@ def editar_imovel(request, imovel_id):
 def excluir_imovel(request, imovel_id):
     imovel = get_object_or_404(Imovel, id=imovel_id, proprietario=request.user)
     if request.method == 'POST':
+        # (Futura melhoria: excluir fotos do B2 antes de deletar o imóvel)
         imovel.delete()
         messages.success(request, 'Imóvel excluído com sucesso!')
         return redirect('meus_imoveis')
@@ -204,14 +191,13 @@ def excluir_imovel(request, imovel_id):
     }
     return render(request, 'contas/excluir_imovel.html', contexto)
 
-# --- View "Excluir Foto" (MODIFICADA) ---
+# --- View "Excluir Foto" (MODIFICADA para Boto3) ---
 @login_required
 def excluir_foto(request, foto_id):
     foto = get_object_or_404(Foto, id=foto_id)
     imovel_id = foto.imovel.id
     
     if foto.imovel.proprietario == request.user:
-        # --- LÓGICA MANUAL DE EXCLUSÃO DO B2 ---
         try:
             s3_client = boto3.client(
                 's3',
@@ -223,13 +209,11 @@ def excluir_foto(request, foto_id):
             )
             bucket_name = os.environ.get('B2_BUCKET_NAME')
             
-            # O nome do arquivo no B2 (ex: media/fotos_galeria/imagem.jpg)
             caminho_completo = f"media/{foto.imagem.name}"
             
             s3_client.delete_object(Bucket=bucket_name, Key=caminho_completo)
             print(f"Boto3 SUCESSO: Excluído {caminho_completo}")
             
-            # Só deleta do banco de dados se a exclusão no B2 foi bem-sucedida
             foto.delete()
             messages.success(request, 'Foto excluída com sucesso.')
             
