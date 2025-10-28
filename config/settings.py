@@ -118,7 +118,7 @@ EMAIL_HOST_USER = os.environ.get('GMAIL_USER')
 EMAIL_HOST_PASSWORD = os.environ.get('GMAIL_APP_PASSWORD')
 DEFAULT_FROM_EMAIL = EMAIL_HOST_USER
 
-# --- Configurações do Cloudflare R2 (VERSÃO SIMPLIFICADA E DIRETA) ---
+# --- Configurações do Cloudflare R2 (VERSÃO FINAL REVISADA) ---
 
 # Credenciais (Lidas do Ambiente)
 AWS_ACCESS_KEY_ID = os.environ.get('CLOUDFLARE_R2_ACCESS_KEY_ID')
@@ -130,8 +130,9 @@ CLOUDFLARE_ACCOUNT_ID = os.environ.get('CLOUDFLARE_R2_ACCOUNT_ID')
 AWS_S3_ENDPOINT_URL = f"https://{CLOUDFLARE_ACCOUNT_ID}.r2.cloudflarestorage.com"
 
 # 2. DOMÍNIO PÚBLICO (Para o navegador exibir a imagem)
-R2_PUBLIC_DOMAIN = 'pub-b06bb61e03d3434889f102b1a56ce95d.r2.dev' # Sua URL Pública (sem https://)
-AWS_S3_CUSTOM_DOMAIN = R2_PUBLIC_DOMAIN 
+#    Sua URL Pública, APENAS O DOMÍNIO (sem https://)
+R2_PUBLIC_DOMAIN = 'pub-b06bb61e03d3434889f102b1a56ce95d.r2.dev' 
+AWS_S3_CUSTOM_DOMAIN = R2_PUBLIC_DOMAIN # Informa ao django-storages
 
 # Configurações Adicionais
 AWS_S3_REGION_NAME = 'auto'
@@ -141,14 +142,12 @@ AWS_DEFAULT_ACL = None
 AWS_QUERYSTRING_AUTH = False 
 
 # --- CONFIGURAÇÃO EXPLÍCITA PARA O BOTO3 ---
-# Esta é a nova parte. Ela força o boto3 a usar as configurações corretas
-# para o endpoint, em vez de tentar adivinhar (o que pode falhar)
 AWS_S3_CLIENT_CONFIG = {
     'endpoint_url': AWS_S3_ENDPOINT_URL,
     'region_name': AWS_S3_REGION_NAME,
     'signature_version': AWS_S3_SIGNATURE_VERSION,
 }
-AWS_S3_ADDRESSING_STYLE = 'auto' # 'auto' ou 'path' podem ser necessários
+AWS_S3_ADDRESSING_STYLE = 'path'
 # ---------------------------------------------
 
 # Define o backend de armazenamento padrão para arquivos de mídia
