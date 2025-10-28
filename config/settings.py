@@ -162,4 +162,44 @@ print(f"AWS_S3_CUSTOM_DOMAIN (final): {AWS_S3_CUSTOM_DOMAIN}")
 print(f"MEDIA_URL (final): {MEDIA_URL}")
 print("--- FIM DO DEBUG DE STORAGE B2 ---")
 
-
+# --- LOGGING (COM BOTOCORE DEBUG ADICIONADO) ---
+LOGGING = {
+    "version": 1,
+    "disable_existing_loggers": False,
+    "formatters": { # Adiciona um formatador para incluir o nome do logger
+        "verbose": {
+            "format": "{levelname} {asctime} {name} {message}",
+            "style": "{",
+        },
+    },
+    "handlers": {
+        "console": {
+            "class": "logging.StreamHandler",
+            "formatter": "verbose", # Usa o formatador
+        },
+    },
+    "loggers": {
+        "django": {
+            "handlers": ["console"],
+            "level": "INFO", # Pode diminuir o DEBUG do Django para focar no Boto
+            "propagate": False,
+        },
+        "storages": { # Logger do django-storages
+            "handlers": ["console"],
+            "level": "DEBUG",
+            "propagate": False,
+        },
+         # --- ADICIONE ESTE LOGGER ---
+        "botocore": { # Logger principal do Boto3/Botocore
+             "handlers": ["console"],
+             "level": "DEBUG",
+             "propagate": False,
+         },
+         # --------------------------
+    },
+    "root": { # Captura logs de outras bibliotecas, se necessário
+        "handlers": ["console"],
+        "level": "INFO",
+    },
+}
+# --- FIM DA SEÇÃO LOGGING ---
