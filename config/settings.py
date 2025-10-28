@@ -143,7 +143,7 @@ AWS_QUERYSTRING_AUTH = False
 AWS_S3_ADDRESSING_STYLE = 'virtual' # B2 usa estilo 'virtual' (bucket.endpoint.com)
 
 # Define o backend de armazenamento padrão
-DEFAULT_FILE_STORAGE = 'storages.backends.s3boto3.S3Boto3Storage'
+# DEFAULT_FILE_STORAGE = 'storages.backends.s3boto3.S3Boto3Storage'
 
 # --- Lógica de MEDIA_URL ATUALIZADA ---
 if DEBUG:
@@ -153,6 +153,6 @@ if DEBUG:
 else:
     # Produção (Render): Usa a URL Pública do B2
     AWS_LOCATION = 'media' # Salva tudo na pasta /media/ (conforme o prefixo da chave)
-    MEDIA_URL = f"https://{AWS_S3_CUSTOM_DOMAIN}/{AWS_LOCATION}/"
-    MEDIA_ROOT = BASE_DIR / 'media'
+    # MEDIA_URL = f"https://{AWS_S3_CUSTOM_DOMAIN}/{AWS_LOCATION}/"
+    MEDIA_URL = f"https://{AWS_S3_CUSTOM_DOMAIN}/"
 # ----------------------------------------------------------------
