@@ -25,13 +25,16 @@ def generate_unique_filename(filename):
 
 # Função auxiliar para fazer o upload manual via Boto3 (ESCOPO CORRIGIDO)
 def upload_to_b2(file_obj, object_name):
+    """Faz upload de um objeto de arquivo usando o storage padrão do Django, 
+       aplicando marca d'água grande com fonte padrão."""
     print(f"--- Iniciando upload_to_b2 para: {object_name} ---")
     
+    file_obj_to_upload = None # Inicializa
     # --- Definir variáveis de fallback PRIMEIRO ---
-    file_obj.seek(0) # Garante que está no início para leitura
+    file_obj.seek(0) 
     file_obj_to_upload = file_obj
-    content_type_to_upload = file_obj.content_type
-    watermark_applied = False # Flag para saber se a marca d'água foi aplicada
+    content_type_to_upload = file_obj.content_type # Salva o content type original
+    watermark_applied = False 
 
     # --- ETAPA 1: Tentar Aplicar Marca D'água ---
     try:
@@ -40,102 +43,81 @@ def upload_to_b2(file_obj, object_name):
         img_width, img_height = img.size
         
         watermark_layer = Image.new('RGBA', img.size, (255, 255, 255, 0))
-        draw = ImageDraw.Draw(watermark_layer) 
+        draw = ImageDraw.Draw(watermark_layer) # Criar o objeto Draw aqui
         
         text = "uso exclusivo de Docelarms"
-        text_color = (0, 0, 0, 128) 
+        text_color = (0, 0, 0, 128) # Preto, ~50% alfa
         
-        font_size = 1 
-        font = None
-        font_path = os.path.join(settings.BASE_DIR, 'static', 'fonts', 'Roboto-VariableFont_wght.ttf') 
-        
-        print(f"Verificando existência da fonte em: {font_path}")
-        font_exists = os.path.exists(font_path)
-        print(f"Arquivo fonte existe? {font_exists}")
-
-        # --- Carregar a Fonte ---
+        # --- Carregar Fonte Padrão ---
         try:
-             if font_exists: # Usa a variável verificada
-                 print(f"Tentando carregar fonte: {font_path}")
-                 font_to_test = ImageFont.truetype(font_path, font_size) 
-                 print(f"Fonte {font_path} carregada inicialmente.")
-             else:
-                 print(f"Fonte especificada NÃO encontrada. Tentando arial.ttf...")
-                 font_to_test = ImageFont.truetype("arial.ttf", font_size)
-                 print("Fonte arial.ttf carregada inicialmente.")
-        except IOError as e:
-             print(f"Não foi possível carregar fonte TTF (arial ou especificada): {e}. Usando fonte padrão.")
-             try:
-                 font = ImageFont.load_default() 
-                 font_to_test = font 
-             except Exception as font_e:
-                 print(f"Erro CRÍTICO ao carregar fonte padrão: {font_e}. Pulando marca d'água.")
-                 raise 
+            print("Carregando fonte padrão do Pillow...")
+            font = ImageFont.load_default() 
+        except Exception as font_e:
+            print(f"Erro CRÍTICO ao carregar fonte padrão: {font_e}. Pulando marca d'água.")
+            raise # Re-levanta a exceção para pular para o bloco 'except img_e'
 
-        # --- Encontrar Tamanho Ideal e Desenhar ---
-        if font is None: 
-            target_font_width_ratio = 0.75 
-            print("Calculando tamanho de fonte ideal...")
-            # ... (Loop while para calcular font_size continua aqui) ...
-            while True:
-                text_width_test = draw.textlength(text, font=font_to_test)
-                if text_width_test < img_width * target_font_width_ratio and font_size < 500: 
-                    font_size += 1
-                    try:
-                        if font_exists: # Usa a variável verificada
-                            font_to_test = ImageFont.truetype(font_path, font_size)
-                        else:
-                            font_to_test = ImageFont.truetype("arial.ttf", font_size)
-                    except IOError: 
-                         print("Erro ao recarregar fonte durante loop.")
-                         font_size -=1 
-                         break
-                else:
-                    font_size -= 1 
-                    if font_size < 1: font_size = 1 
-                    break            
-            # Carrega a fonte final
-            try:
-                if font_exists: # Usa a variável verificada
-                    font = ImageFont.truetype(font_path, font_size)
-                else:
-                    font = ImageFont.truetype("arial.ttf", font_size)
-                print(f"Fonte final carregada com tamanho: {font_size}")
-            except IOError:
-                 print("Erro ao carregar fonte final. Usando fonte padrão.")
-                 font = ImageFont.load_default()
-
+        # --- Desenhar Texto Pequeno Temporário ---
         if font:
-            # ... (Lógica para calcular bbox, criar text_img, rotar, colar na watermark_layer) ...
+            # CORREÇÃO: Usar draw.textbbox() para medir o texto com a fonte padrão
             try:
-                text_bbox = draw.textbbox((0, 0), text, font=font)
-                text_width = text_bbox[2] - text_bbox[0]
-                text_height = text_bbox[3] - text_bbox[1]
-            except AttributeError: 
-                print("Usando draw.textsize() como fallback.")
-                text_width, text_height = draw.textsize(text, font=font) 
+                text_bbox_orig = draw.textbbox((0, 0), text, font=font)
+                text_width_orig = text_bbox_orig[2] - text_bbox_orig[0]
+                text_height_orig = text_bbox_orig[3] - text_bbox_orig[1]
+                print(f"Dimensões originais do texto padrão: {text_width_orig}x{text_height_orig}")
+            except AttributeError:
+                # Fallback MUITO antigo (improvável necessário com Pillow recente)
+                print("Usando draw.textsize() como fallback para fonte padrão.")
+                text_width_orig, text_height_orig = draw.textsize(text, font=font)
 
-            text_padding = int(max(text_width, text_height) * 0.1) if text_width > 0 and text_height > 0 else 10
-            text_img_size_w = text_width + 2*text_padding
-            text_img_size_h = text_height + 2*text_padding
-            if text_img_size_w <= 0 or text_img_size_h <=0: 
-                print("Dimensões inválidas. Pulando marca d'água.")
-                raise ValueError("Dimensões de texto inválidas")
+            if text_width_orig <= 0 or text_height_orig <= 0:
+                 print("Fonte padrão retornou tamanho inválido. Pulando marca d'água.")
+                 raise ValueError("Tamanho de fonte padrão inválido")
 
-            text_img = Image.new('RGBA', (text_img_size_w, text_img_size_h), (0,0,0,0))
-            text_draw = ImageDraw.Draw(text_img)
-            text_draw.text((text_padding, text_padding), text, font=font, fill=text_color)             
-            angle = 20 
-            rotated_text_img = text_img.rotate(angle, expand=1, resample=Image.BICUBIC)
-            rotated_width, rotated_height = rotated_text_img.size
-            x = (img_width - rotated_width) / 2
-            y = (img_height - rotated_height) / 2            
-            print(f"Colando marca d'água rotacionada em ({x},{y})")
-            watermark_layer.paste(rotated_text_img, (int(x), int(y)), rotated_text_img)            
-            img = Image.alpha_composite(img, watermark_layer)
-            watermark_applied = True # Marca que deu certo
+            # Cria imagem temporária só pro texto original
+            text_img_orig = Image.new('RGBA', (text_width_orig, text_height_orig), (0,0,0,0))
+            text_draw_orig = ImageDraw.Draw(text_img_orig)
+            # Desenha na posição (0,0) dentro da imagem temporária pequena
+            text_draw_orig.text((0, 0), text, font=font, fill=text_color) 
+
+            # --- Redimensionar a Imagem do Texto ---
+            target_font_width_ratio = 0.75 # 75% da largura da imagem
+            target_text_width = int(img_width * target_font_width_ratio)
+            aspect_ratio = text_height_orig / text_width_orig
+            target_text_height = int(target_text_width * aspect_ratio)
+
+            if target_text_width > 0 and target_text_height > 0:
+                print(f"Redimensionando texto de ({text_width_orig}x{text_height_orig}) para ({target_text_width}x{target_text_height})")
+                text_img_resized = text_img_orig.resize((target_text_width, target_text_height), Image.Resampling.LANCZOS)
+    
+                # --- Rotação (Opcional - Remova se não quiser) ---
+                angle = 0 # <<-- DEFINA 0 PARA NÃO ROTACIONAR, ou mantenha 20 se preferir
+                if angle != 0:
+                    print(f"Rotacionando texto em {angle} graus...")
+                    # Adiciona padding ANTES de rotacionar para evitar cortes
+                    pad_w = int(target_text_width * 0.1)
+                    pad_h = int(target_text_height * 0.1)
+                    padded_resized_img = Image.new('RGBA', (target_text_width + 2*pad_w, target_text_height + 2*pad_h), (0,0,0,0))
+                    padded_resized_img.paste(text_img_resized, (pad_w, pad_h))
+                    final_text_img = padded_resized_img.rotate(angle, expand=1, resample=Image.BICUBIC)
+                else:
+                    final_text_img = text_img_resized # Sem rotação
+                
+                # Calcula dimensões e posição da imagem final do texto (rotacionada ou não)
+                final_text_width, final_text_height = final_text_img.size
+                x = (img_width - final_text_width) / 2
+                y = (img_height - final_text_height) / 2
+                
+                # Cola a imagem do texto (grande, possivelmente rotacionada) na camada de marca d'água
+                print(f"Colando marca d'água final em ({x},{y})")
+                watermark_layer.paste(final_text_img, (int(x), int(y)), final_text_img) 
+                
+                img = Image.alpha_composite(img, watermark_layer)
+                watermark_applied = True
+            else:
+                print("Dimensões calculadas inválidas. Pulando marca d'água.")
         else:
-             print("Não foi possível carregar nenhuma fonte. Pulando marca d'água.")
+             # Este caso não deve acontecer se load_default funcionar
+             print("Não foi possível carregar fonte padrão. Pulando marca d'água.")
 
         # --- ETAPA 2: Salvar Imagem Modificada em Memória (SE APLICADA) ---
         if watermark_applied:
@@ -149,43 +131,35 @@ def upload_to_b2(file_obj, object_name):
             else: 
                  img.save(output_buffer, format=save_format)              
             output_buffer.seek(0) 
-            # ATUALIZA as variáveis de upload
             file_obj_to_upload = output_buffer 
-            content_type_to_upload = f'image/{save_format.lower()}'         
-            print("Imagem com marca d'água pronta para upload.")
-        # Se watermark_applied for False, as variáveis de fallback (imagem original) serão usadas
+            content_type_to_upload = f'image/{save_format.lower()}' # Define content type AQUI       
+            print("Imagem com marca d'água pronta para salvar.")
+        # Se watermark_applied for False, as variáveis de fallback (imagem original) são usadas
 
     except Exception as img_e:
         print(f"!!! ERRO GERAL ao aplicar marca d'água !!!") 
         print(f"Erro: {img_e}")
         traceback.print_exc()
-        print("Prosseguindo com upload da imagem ORIGINAL.")
-        # Garante que as variáveis de fallback estão corretas
+        print("Prosseguindo com salvamento da imagem ORIGINAL.")
         file_obj.seek(0) 
         file_obj_to_upload = file_obj 
-        content_type_to_upload = file_obj.content_type 
+        content_type_to_upload = file_obj.content_type # Define content type AQUI também
 
-    # --- ETAPA 3: Upload para B2 ---
+    # --- ETAPA 3: Upload/Save usando o Storage Padrão ---
     try:
-        s3_client = boto3.client(...) # Configs como antes
-        print("Cliente S3 Boto3 criado.")
-        bucket_name = os.getenv("B2_BUCKET_NAME")        
-        
-        # USA AS VARIÁVEIS DEFINIDAS ANTES OU NO BLOCO EXCEPT ACIMA
-        print(f"Executando put_object: Bucket={bucket_name}, Key={object_name}, ContentType={content_type_to_upload}")
-        s3_client.put_object(
-            Bucket=bucket_name,
-            Key=object_name,
-            Body=file_obj_to_upload, 
-            ContentType=content_type_to_upload 
-        )
-        print(f"SUCESSO: Upload Boto3 concluído para {object_name}")
-        return True 
+        if file_obj_to_upload is None: 
+             print("!!! ERRO: file_obj_to_upload não definido. Pulando save. !!!")
+             return False
+
+        print(f"Executando default_storage.save(): Name={object_name}")
+        # Passa o nome completo (com AWS_LOCATION) e o objeto de arquivo (original ou buffer)
+        actual_name = default_storage.save(object_name, file_obj_to_upload) 
+        print(f"SUCESSO: default_storage.save() concluído. Nome real salvo: {actual_name}")
+        return actual_name # Retorna o nome do arquivo como salvo
 
     except Exception as e:
-        print(f"!!! ERRO no upload_to_b2 para {object_name} !!!")
+        print(f"!!! ERRO no default_storage.save() para {object_name} !!!")
         print(f"Erro: {e}")
-        # Imprime o traceback completo, incluindo o UnboundLocalError se ainda ocorrer
         traceback.print_exc() 
         return False
 
