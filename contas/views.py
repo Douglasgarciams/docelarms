@@ -70,7 +70,7 @@ def upload_to_b2(file_obj, object_name):
         
         if font_size < 20: font_size = 20 # Tamanho mínimo razoável
 
-        font = None
+        font_path = os.path.join(settings.BASE_DIR, 'static', 'fonts', 'Roboto-VariableFont_wght.ttf')
         font_path = None 
         try:
              # Se você adicionar um arquivo de fonte:
