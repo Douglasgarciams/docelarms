@@ -9,6 +9,7 @@ from django.contrib.auth import update_session_auth_hash
 import traceback # Importar para o traceback
 import os 
 import boto3
+from django.conf import settings
 print("--- views.py: boto3 IMPORTADO COM SUCESSO ---")
 
 # --- View de Cadastro (Original) ---
@@ -142,8 +143,8 @@ def editar_imovel(request, imovel_id):
     if request.method == 'POST':
         form = ImovelForm(request.POST, request.FILES, instance=imovel)
         print("--- DEBUG FORM POST (Editar) ---")
-        print(f"request.POST (primeiros 500 chars): {str(request.POST)[:500]}")
-        print(f"request.FILES: {request.FILES}")
+        print(f"request.POST (primeiros 500 chars): {str(request.POST)[:500]}") 
+        print(f"request.FILES: {request.FILES}") 
         print(f"Form is_bound: {form.is_bound}")
 
         if form.is_valid():
@@ -152,7 +153,7 @@ def editar_imovel(request, imovel_id):
             print(f"Dados limpos (sem descricao): {cleaned_data_preview}")
             print(f"Foto principal nos dados limpos: {form.cleaned_data.get('foto_principal')}")
 
-            # --- INÍCIO DO TESTE DIRETO BOTO3 ---
+            # --- INÍCIO DO TESTE DIRETO BOTO3 (PUT OBJECT - CORRIGIDO) ---
             print("\n--- INICIANDO TESTE DIRETO BOTO3 (PUT OBJECT) ---")
             try:
                 print("Tentando criar cliente S3 Boto3...")
@@ -165,9 +166,9 @@ def editar_imovel(request, imovel_id):
                 )
                 print("Cliente S3 Boto3 criado com sucesso.")
 
-                # Tenta fazer upload de um pequeno arquivo de teste direto via Boto3
                 test_file_content = b"Este eh um teste de upload do boto3."
-                test_file_key = f"{AWS_LOCATION}/boto3_test.txt" # Salva dentro da pasta media
+                # CORREÇÃO: Usar settings.AWS_LOCATION
+                test_file_key = f"{settings.AWS_LOCATION}/boto3_test.txt" 
                 bucket_name = os.getenv("B2_BUCKET_NAME")
 
                 print(f"Tentando fazer PutObject para BUCKET={bucket_name} KEY={test_file_key}...")
@@ -175,7 +176,7 @@ def editar_imovel(request, imovel_id):
                     Bucket=bucket_name,
                     Key=test_file_key,
                     Body=test_file_content,
-                    ContentType='text/plain' # Define o tipo do arquivo
+                    ContentType='text/plain' 
                 )
                 print(f"Boto3 PutObject SUCESSO. Resposta: {response}")
 
@@ -183,51 +184,52 @@ def editar_imovel(request, imovel_id):
                 print(f"!!! ERRO no teste direto Boto3 (PutObject) !!!")
                 print(f"Tipo do erro: {type(boto_err)}")
                 print(f"Erro: {boto_err}")
-                traceback.print_exc() # Imprime o traceback completo do erro Boto3
+                traceback.print_exc() 
             print("--- FIM TESTE DIRETO BOTO3 (PUT OBJECT) ---\n")
             # --- FIM DO TESTE DIRETO BOTO3 ---
 
+            # Bloco try...except para form.save() continua igual...
             try:
                 print("Tentando salvar o formulário (form.save())...")
-                imovel_salvo = form.save()
+                imovel_salvo = form.save() 
                 print("form.save() EXECUTADO com sucesso.")
-                imovel_recarregado = Imovel.objects.get(id=imovel_salvo.id)
+                imovel_recarregado = Imovel.objects.get(id=imovel_salvo.id) 
                 print(f"Foto principal NO BANCO após save: {imovel_recarregado.foto_principal.name if imovel_recarregado.foto_principal else 'None'}")
                 if imovel_recarregado.foto_principal:
                     print(f"URL da foto principal gerada: {imovel_recarregado.foto_principal.url}")
 
                 fotos_galeria = request.FILES.getlist('fotos_galeria')
-                print(f"Processando {len(fotos_galeria)} fotos da galeria...")
+                print(f"Processando {len(fotos_galeria)} fotos da galeria...") 
                 for f in fotos_galeria:
                     try:
                         foto_obj = Foto.objects.create(imovel=imovel_salvo, imagem=f)
-                        print(f"Foto da galeria salva: {foto_obj.imagem.name}, URL: {foto_obj.imagem.url}")
+                        print(f"Foto da galeria salva: {foto_obj.imagem.name}, URL: {foto_obj.imagem.url}") 
                     except Exception as e_galeria:
-                        print(f"!!! ERRO ao salvar foto da galeria: {f.name} !!!")
-                        print(e_galeria)
+                        print(f"!!! ERRO ao salvar foto da galeria: {f.name} !!!") 
+                        print(e_galeria) 
 
                 messages.success(request, 'Imóvel atualizado com sucesso!')
-                print("Redirecionando para meus_imoveis...")
+                print("Redirecionando para meus_imoveis...") 
                 return redirect('meus_imoveis')
 
-            except Exception as e:
+            except Exception as e: 
                 print(f"!!! ERRO CRÍTICO DURANTE form.save() (editar_imovel) !!!")
                 print(f"Tipo do erro: {type(e)}")
                 print(f"Erro: {e}")
-                traceback.print_exc()
+                traceback.print_exc() 
                 messages.error(request, f'Ocorreu um erro inesperado ao salvar: {e}')
-
-        else:
+                
+        else: 
             print("Formulário (Editar) NÃO é válido.")
             print("Erros do formulário:")
-            print(form.errors.as_text())
+            print(form.errors.as_text()) 
             messages.error(request, 'Por favor, corrija os erros no formulário.')
 
-    else:
+    else: 
         form = ImovelForm(instance=imovel)
-        print("Renderizando formulário (Editar) para GET.")
+        print("Renderizando formulário (Editar) para GET.") 
 
-    print("Renderizando template anunciar_imovel.html (Editar)...")
+    print("Renderizando template anunciar_imovel.html (Editar)...") 
     return render(request, 'contas/anunciar_imovel.html', {'form': form})
 
 
