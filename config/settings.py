@@ -11,23 +11,26 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # --- SECURITY ---
 SECRET_KEY = os.environ.get(
     'SECRET_KEY',
-    'django-insecure-mituc@yo-b49e!r=wdy^g(9!w57ilg363s9v%4@95ee&$dr%2j'
+    'django-insecure-mituc@yo-b49e!r=wdy^g(9!w57ilg363s9v%4@95ee&$dr%2j' # Default only for local dev
 )
 
-# ⚙️ Em produção, mantenha sempre False
-DEBUG = False
+# --- DEBUG SETTING ---
+# Reads DEBUG from environment variable (like 'False' on Render)
+# Defaults to True for local development if not set.
+DEBUG = os.environ.get('DEBUG', 'True') == 'True' 
 
 # --- ALLOWED HOSTS ---
-ALLOWED_HOSTS = ["docelarms.com.br", "www.docelarms.com.br"]
-RENDER_EXTERNAL_HOSTNAME = os.environ.get('RENDER_EXTERNAL_HOSTNAME')
-if RENDER_EXTERNAL_HOSTNAME:
-    ALLOWED_HOSTS.append(RENDER_EXTERNAL_HOSTNAME)
+# Defined conditionally later based on DEBUG status
 
 # --- CSRF CONFIG ---
+# Add Render's hostname if available (useful even in dev if using preview URLs)
+RENDER_EXTERNAL_HOSTNAME = os.environ.get('RENDER_EXTERNAL_HOSTNAME')
 CSRF_TRUSTED_ORIGINS = [
     "https://www.docelarms.com.br",
     "https://docelarms.com.br",
 ]
+if RENDER_EXTERNAL_HOSTNAME:
+    CSRF_TRUSTED_ORIGINS.append(f"https://{RENDER_EXTERNAL_HOSTNAME}")
 
 # --- INSTALLED APPS ---
 INSTALLED_APPS = [
@@ -36,10 +39,10 @@ INSTALLED_APPS = [
     'django.contrib.contenttypes',
     'django.contrib.sessions',
     'django.contrib.messages',
-    'whitenoise.runserver_nostatic',
+    'whitenoise.runserver_nostatic', # Use only if needed locally, usually handled differently in prod
     'django.contrib.staticfiles',
     'django.contrib.humanize',
-    'storages',
+    'storages', # Needed for production
     'imoveis',
     'contas',
 ]
@@ -47,7 +50,8 @@ INSTALLED_APPS = [
 # --- MIDDLEWARE ---
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
-    'whitenoise.middleware.WhiteNoiseMiddleware',
+    # WhiteNoise middleware goes AFTER SecurityMiddleware
+    'whitenoise.middleware.WhiteNoiseMiddleware', 
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
@@ -77,6 +81,7 @@ TEMPLATES = [
 WSGI_APPLICATION = 'config.wsgi.application'
 
 # --- DATABASE ---
+# Uses DATABASE_URL from Render environment, falls back to local SQLite
 DATABASES = {
     'default': dj_database_url.config(
         default=f'sqlite:///{BASE_DIR / "db.sqlite3"}',
@@ -100,11 +105,72 @@ USE_L10N = True
 USE_THOUSAND_SEPARATOR = True
 USE_TZ = True
 
-# --- STATIC FILES (WhiteNoise) ---
+# --- STATIC FILES (Shared Config) ---
 STATIC_URL = 'static/'
+# Directory where Django looks for static files locally (your CSS, JS, etc.)
 STATICFILES_DIRS = [BASE_DIR / 'static']
-STATIC_ROOT = BASE_DIR / 'staticfiles'
+# Directory where collectstatic gathers all static files for deployment
+STATIC_ROOT = BASE_DIR / 'staticfiles' 
+# Recommended storage for WhiteNoise in production
 STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
+
+# --- MEDIA FILES (User Uploads - Conditional Config) ---
+MEDIA_ROOT = BASE_DIR / 'mediafiles' # Local path for DEBUG=True
+
+if DEBUG:
+    # --- Development Settings ---
+    ALLOWED_HOSTS = ['127.0.0.1', 'localhost']
+    # Add Render preview URL if needed during dev
+    if RENDER_EXTERNAL_HOSTNAME:
+         ALLOWED_HOSTS.append(RENDER_EXTERNAL_HOSTNAME)
+
+    # Use local filesystem for media files
+    DEFAULT_FILE_STORAGE = 'django.core.files.storage.FileSystemStorage'
+    MEDIA_URL = '/media/' # URL to access local media files via dev server
+
+    # Email backend for development (prints emails to console)
+    EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
+
+else:
+    # --- Production Settings (Render) ---
+    ALLOWED_HOSTS = ["docelarms.com.br", "www.docelarms.com.br"]
+    if RENDER_EXTERNAL_HOSTNAME:
+        ALLOWED_HOSTS.append(RENDER_EXTERNAL_HOSTNAME)
+
+    # Use Backblaze B2 via django-storages
+    DEFAULT_FILE_STORAGE = "storages.backends.s3boto3.S3Boto3Storage"
+
+    # B2 Credentials and Config
+    AWS_ACCESS_KEY_ID = os.getenv("B2_ACCESS_KEY_ID")
+    AWS_SECRET_ACCESS_KEY = os.getenv("B2_SECRET_ACCESS_KEY")
+    AWS_STORAGE_BUCKET_NAME = os.getenv("B2_BUCKET_NAME")
+    AWS_S3_REGION_NAME = os.getenv("B2_REGION_NAME", "us-east-005") # Default region
+    AWS_S3_ENDPOINT_URL = f"https://{os.getenv('B2_ENDPOINT')}" # e.g., https://s3.us-east-005.backblazeb2.com
+    
+    # Standard B2/S3 settings for django-storages
+    AWS_QUERYSTRING_AUTH = False # If bucket is public, set to False
+    AWS_DEFAULT_ACL = None # B2 doesn't use ACLs like S3 standard
+    AWS_S3_FILE_OVERWRITE = False # Keep False for safety
+    AWS_LOCATION = 'media' # Subdirectory within the bucket
+
+    # Construct the MEDIA_URL for B2 (bucket as subdomain is standard S3 style)
+    # Ensure B2_ENDPOINT env var does NOT include 'https://'
+    B2_ENDPOINT = os.getenv("B2_ENDPOINT")
+    if B2_ENDPOINT and AWS_STORAGE_BUCKET_NAME:
+        MEDIA_URL = f'https://{AWS_STORAGE_BUCKET_NAME}.{B2_ENDPOINT}/{AWS_LOCATION}/'
+    else:
+        # Fallback or raise error if env vars are missing
+        print("!!! WARNING: B2_ENDPOINT or B2_BUCKET_NAME missing for MEDIA_URL construction !!!")
+        MEDIA_URL = '/placeholder-media-error/' # Or raise ImproperlyConfigured
+
+    # --- Production Email Config ---
+    EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+    EMAIL_HOST = 'smtp.gmail.com'
+    EMAIL_PORT = 587
+    EMAIL_USE_TLS = True
+    EMAIL_HOST_USER = os.environ.get('GMAIL_USER')
+    EMAIL_HOST_PASSWORD = os.environ.get('GMAIL_APP_PASSWORD')
+    DEFAULT_FROM_EMAIL = EMAIL_HOST_USER
 
 # --- DEFAULT PRIMARY KEY ---
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
@@ -114,64 +180,34 @@ LOGIN_REDIRECT_URL = '/'
 LOGOUT_REDIRECT_URL = '/'
 LOGIN_URL = 'login'
 
-# --- EMAIL CONFIG ---
-EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
-EMAIL_HOST = 'smtp.gmail.com'
-EMAIL_PORT = 587
-EMAIL_USE_TLS = True
-EMAIL_HOST_USER = os.environ.get('GMAIL_USER')
-EMAIL_HOST_PASSWORD = os.environ.get('GMAIL_APP_PASSWORD')
-DEFAULT_FROM_EMAIL = EMAIL_HOST_USER
-
-# --- BACKBLAZE B2 STORAGE CONFIG (SIMPLIFICADO E CORRIGIDO) ---
-DEFAULT_FILE_STORAGE = "storages.backends.s3boto3.S3Boto3Storage"
-
-AWS_ACCESS_KEY_ID = os.getenv("B2_ACCESS_KEY_ID")
-AWS_SECRET_ACCESS_KEY = os.getenv("B2_SECRET_ACCESS_KEY")
-AWS_STORAGE_BUCKET_NAME = os.getenv("B2_BUCKET_NAME")
-AWS_S3_REGION_NAME = os.getenv("B2_REGION_NAME", "us-east-005")
-AWS_S3_ENDPOINT_URL = f"https://{os.getenv('B2_ENDPOINT')}"
-AWS_QUERYSTRING_AUTH = False
-AWS_DEFAULT_ACL = None
-AWS_S3_FILE_OVERWRITE = False
-
-# Pasta dentro do bucket
-AWS_LOCATION = 'media'
-
-# --- A LINHA AWS_S3_CUSTOM_DOMAIN FOI REMOVIDA OU ESTÁ COMENTADA ---
-# AWS_S3_CUSTOM_DOMAIN = f"{os.getenv('B2_ENDPOINT')}/file/{AWS_STORAGE_BUCKET_NAME}" # <- REMOVIDA/COMENTADA
-
-# --- AJUSTE MEDIA_URL ---
-# Usar o formato de subdomínio é geralmente mais compatível
-MEDIA_URL = f'https://{AWS_STORAGE_BUCKET_NAME}.{os.getenv("B2_ENDPOINT")}/{AWS_LOCATION}/'
-# Se o B2 não usa subdomínio para seu endpoint específico, use a linha abaixo como alternativa:
-# MEDIA_URL = f"{AWS_S3_ENDPOINT_URL}/{AWS_STORAGE_BUCKET_NAME}/{AWS_LOCATION}/"
-
-# --- FIM DAS ALTERAÇÕES ---
-
-
-# --- Bloco de depuração (CORRIGIDO - REMOVIDO O PRINT PROBLEMÁTICO) ---
-print("--- INICIANDO DEBUG DE STORAGE B2 ---")
-print(f"B2_ENDPOINT (raw): {os.getenv('B2_ENDPOINT')}")
-print(f"B2_BUCKET_NAME (raw): {os.getenv('B2_BUCKET_NAME')}")
-print(f"B2_ACCESS_KEY_ID (raw): {os.getenv('B2_ACCESS_KEY_ID')}")
-print(f"B2_SECRET_ACCESS_KEY (raw): {os.getenv('B2_SECRET_ACCESS_KEY')}")
-print("---")
-print(f"AWS_S3_ENDPOINT_URL (final): {AWS_S3_ENDPOINT_URL}")
-print(f"AWS_STORAGE_BUCKET_NAME (final): {AWS_STORAGE_BUCKET_NAME}")
-# print(f"AWS_S3_CUSTOM_DOMAIN (final): {AWS_S3_CUSTOM_DOMAIN}") # <- REMOVIDO/COMENTADO
-print(f"MEDIA_URL (final): {MEDIA_URL}")
+# --- DEBUG PRINTS (Keep for now) ---
+# Note: These will print during build AND when the app starts if DEBUG=False
+print("--- DEBUG STATUS ---")
+print(f"DEBUG = {DEBUG}")
+print("--- INICIANDO DEBUG DE STORAGE B2 (Only relevant if DEBUG=False) ---")
+if not DEBUG: # Only print B2 details if in production mode
+    print(f"B2_ENDPOINT (raw): {os.getenv('B2_ENDPOINT')}")
+    print(f"B2_BUCKET_NAME (raw): {os.getenv('B2_BUCKET_NAME')}")
+    print(f"B2_ACCESS_KEY_ID (raw): {os.getenv('B2_ACCESS_KEY_ID')}")
+    # Consider removing SECRET_KEY print for security
+    # print(f"B2_SECRET_ACCESS_KEY (raw): {os.getenv('B2_SECRET_ACCESS_KEY')}")
+    print("---")
+    print(f"AWS_S3_ENDPOINT_URL (final): {AWS_S3_ENDPOINT_URL if not DEBUG else 'N/A'}")
+    print(f"AWS_STORAGE_BUCKET_NAME (final): {AWS_STORAGE_BUCKET_NAME if not DEBUG else 'N/A'}")
+    print(f"MEDIA_URL (final): {MEDIA_URL}")
+else:
+    print("Running in DEBUG mode, B2 settings not actively used by default.")
+    print(f"Local MEDIA_ROOT: {MEDIA_ROOT}")
+    print(f"Local MEDIA_URL: {MEDIA_URL}")
 print("--- FIM DO DEBUG DE STORAGE B2 ---")
 
-# Em settings.py
 
-# --- LOGGING (VERSÃO MAIS DETALHADA) ---
+# --- LOGGING (VERSÃO MAIS DETALHADA - Keep for now) ---
 LOGGING = {
     "version": 1,
     "disable_existing_loggers": False,
     "formatters": {
         "verbose": {
-            # Adiciona mais detalhes como nome do logger, processo, thread
             "format": "{levelname} {asctime} {name} [{process:d}:{thread:d}] {message}",
             "style": "{",
         },
@@ -179,14 +215,14 @@ LOGGING = {
     "handlers": {
         "console": {
             "class": "logging.StreamHandler",
-            "formatter": "verbose", # Usa o formatador detalhado
+            "formatter": "verbose", 
         },
     },
     "loggers": {
         "django": {
             "handlers": ["console"],
-            "level": "INFO", # Mantém os logs do Django mais limpos
-            "propagate": False, # Evita duplicar logs no root
+            "level": "INFO", 
+            "propagate": False, 
         },
         "storages": { # Logger do django-storages
             "handlers": ["console"],
@@ -195,7 +231,7 @@ LOGGING = {
         },
         "botocore": { # Logger principal do Boto3/Botocore
              "handlers": ["console"],
-             "level": "DEBUG", # Captura tudo do botocore
+             "level": "DEBUG", 
              "propagate": False,
          },
          "boto3": { # Às vezes logs aparecem aqui também
@@ -203,17 +239,16 @@ LOGGING = {
              "level": "DEBUG",
              "propagate": False,
          },
-         "urllib3": { # Logs de conexão de rede (úteis para S3/B2)
+         "urllib3": { # Logs de conexão de rede
             "handlers": ["console"],
-            "level": "DEBUG",
+            "level": "DEBUG", # Can be noisy, set to INFO if needed
             "propagate": False,
          }
     },
-    # ATENÇÃO: Configura o logger raiz para DEBUG temporariamente
-    # Isso pode gerar MUITOS logs, mas deve capturar tudo
+    # Set root logger level based on DEBUG status
     "root": {
         "handlers": ["console"],
-        "level": "DEBUG",
+        "level": "DEBUG" if DEBUG else "INFO", # DEBUG locally, INFO in production
     },
 }
 # --- FIM DA SEÇÃO LOGGING ---
