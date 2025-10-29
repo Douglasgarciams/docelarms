@@ -3,24 +3,98 @@ from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from .forms import CustomUserCreationForm, UserUpdateForm, CustomPasswordChangeForm
-from imoveis.models import Imovel, Foto # Importar Imovel, Foto
+from imoveis.models import Imovel, Foto
 from imoveis.forms import ImovelForm
 from django.contrib.auth import update_session_auth_hash
 import traceback 
 import os 
 import boto3 
 from django.conf import settings 
-from django.core.files.uploadedfile import InMemoryUploadedFile # Importar para checar tipo
-
-# Função auxiliar para gerar nome de arquivo único (opcional, mas bom)
+from django.core.files.uploadedfile import InMemoryUploadedFile
 import uuid
 from pathlib import Path
 
+# Importar Pillow para manipulação de imagens
+from PIL import Image, ImageDraw, ImageFont
+from io import BytesIO
+
+# Função auxiliar para gerar nome de arquivo único
 def generate_unique_filename(filename):
     """Gera um nome de arquivo único mantendo a extensão."""
     ext = Path(filename).suffix
     new_filename = f"{uuid.uuid4()}{ext}"
     return new_filename
+
+# --- NOVA FUNÇÃO: Adicionar marca d'água ---
+def add_watermark(image_file, watermark_text="USO EXCLUSIVO DE DOCELARMS", font_path=None):
+    """
+    Adiciona uma marca d'água centralizada e em negrito a uma imagem.
+    image_file: objeto de arquivo (BytesIO ou similar) da imagem original.
+    watermark_text: O texto da marca d'água.
+    font_path: Caminho para um arquivo de fonte .ttf. Se None, usará uma fonte padrão.
+    """
+    print(f"--- Adicionando marca d'água: '{watermark_text}' ---")
+    try:
+        # Abre a imagem
+        img = Image.open(image_file).convert("RGBA")
+        width, height = img.size
+
+        draw = ImageDraw.Draw(img)
+
+        # Tenta carregar uma fonte negrito ou usa a padrão
+        try:
+            # Você pode precisar ajustar o caminho da fonte.
+            # No Linux, 'arial.ttf' ou 'DejaVuSans-Bold.ttf' podem funcionar.
+            # No Windows, pode ser 'arialbd.ttf' (Arial Bold).
+            # Para máxima compatibilidade, você pode incluir um arquivo .ttf no seu projeto.
+            if font_path and os.path.exists(font_path):
+                font = ImageFont.truetype(font_path, int(height / 20)) # Tamanho da fonte proporcional
+            else:
+                # Tenta fontes comuns de negrito ou fallback para padrão
+                try:
+                    font = ImageFont.truetype("arialbd.ttf", int(height / 20)) # Windows
+                except IOError:
+                    try:
+                        font = ImageFont.truetype("DejaVuSans-Bold.ttf", int(height / 20)) # Linux/macOS
+                    except IOError:
+                        font = ImageFont.load_default() # Fallback para fonte padrão se negrito não for encontrado
+                        print("Aviso: Nenhuma fonte negrito específica encontrada, usando fonte padrão.")
+
+        except Exception as e:
+            print(f"Erro ao carregar fonte, usando padrão: {e}")
+            font = ImageFont.load_default()
+        
+        # O tamanho do texto para centralizar
+        # getbbox é mais moderno que getsize
+        text_bbox = draw.textbbox((0, 0), watermark_text, font=font)
+        text_width = text_bbox[2] - text_bbox[0]
+        text_height = text_bbox[3] - text_bbox[1]
+
+        # Calcula a posição central
+        x = (width - text_width) / 2
+        y = (height - text_height) / 2
+
+        # Adiciona o texto em preto
+        draw.text((x, y), watermark_text, font=font, fill=(0, 0, 0, 255)) # Preto com opacidade total
+
+        # Salva a imagem modificada em um buffer de bytes
+        buffer = BytesIO()
+        # Salva no formato original ou como JPEG/PNG se for mais simples
+        # Se a imagem original era RGBA (PNG), salva como PNG. Se RGB (JPG), salva como JPG.
+        # Caso contrário, converte para RGB e salva como JPEG para evitar problemas
+        if img.mode == "RGBA":
+            img.save(buffer, format="PNG")
+        else:
+            img.convert("RGB").save(buffer, format="JPEG")
+
+        buffer.seek(0)
+        print("Marca d'água adicionada com sucesso.")
+        return buffer
+    except Exception as e:
+        print(f"!!! ERRO ao adicionar marca d'água: {e} !!!")
+        traceback.print_exc()
+        image_file.seek(0) # Retorna o ponteiro do arquivo original
+        return image_file # Retorna o arquivo original em caso de erro
 
 # Função auxiliar para fazer o upload manual via Boto3
 def upload_to_b2(file_obj, object_name):
@@ -40,13 +114,37 @@ def upload_to_b2(file_obj, object_name):
         
         # Voltar ao início do arquivo para leitura
         file_obj.seek(0) 
+
+        # --- APLICAR MARCA D'ÁGUA ANTES DO UPLOAD ---
+        # Certifique-se de que o file_obj é um objeto de arquivo que pode ser lido pela Pillow.
+        # InMemoryUploadedFile já funciona bem aqui.
+        watermarked_file_buffer = add_watermark(file_obj)
+        # Atualiza o content_type caso o formato tenha mudado (ex: PNG para JPEG)
+        if watermarked_file_buffer != file_obj: # Se a marca d'água foi aplicada com sucesso
+            # Tenta inferir o content_type do buffer, ou mantém o original se Pillow não mudar o formato
+            # Pillow tenta manter o formato, mas se for RGBA e salvar como JPG, será imagem/jpeg
+            try:
+                # Abre para reavaliar o tipo, se necessário
+                temp_img = Image.open(watermarked_file_buffer)
+                if temp_img.format == 'PNG':
+                    content_type = 'image/png'
+                elif temp_img.format == 'JPEG':
+                    content_type = 'image/jpeg'
+                else:
+                    content_type = file_obj.content_type # Fallback
+                watermarked_file_buffer.seek(0) # Volta para o início para o upload
+            except Exception:
+                content_type = file_obj.content_type # Fallback em caso de erro ao reabrir
+        else:
+            content_type = file_obj.content_type
+        # -----------------------------------------------
         
-        print(f"Executando put_object: Bucket={bucket_name}, Key={object_name}, ContentType={file_obj.content_type}")
+        print(f"Executando put_object: Bucket={bucket_name}, Key={object_name}, ContentType={content_type}")
         s3_client.put_object(
             Bucket=bucket_name,
             Key=object_name,
-            Body=file_obj,
-            ContentType=file_obj.content_type # Usa o content type detectado pelo Django
+            Body=watermarked_file_buffer, # Usar o arquivo com marca d'água
+            ContentType=content_type # Usa o content type atualizado
         )
         print(f"SUCESSO: Upload Boto3 concluído para {object_name}")
         return True # Indica sucesso
@@ -125,15 +223,15 @@ def anunciar_imovel(request):
                         print(f"Atualizando DB com caminho da foto principal: {imovel.foto_principal.name}")
                         imovel.save(update_fields=['foto_principal']) # Salva apenas este campo
                     else:
-                         messages.error(request, f'Falha ao fazer upload da foto principal: {original_filename}')
-                         # Decide se quer continuar ou parar se o upload principal falhar
-                         # return render(request, 'contas/anunciar_imovel.html', {'form': form})
+                        messages.error(request, f'Falha ao fazer upload da foto principal: {original_filename}')
+                        # Decide se quer continuar ou parar se o upload principal falhar
+                        # return render(request, 'contas/anunciar_imovel.html', {'form': form})
 
                 # 4. Faz o upload manual das fotos da galeria, se houver e principal deu certo
                 if upload_principal_success and fotos_galeria_list:
                     print(f"Processando {len(fotos_galeria_list)} fotos da galeria manualmente...")
                     for file_obj in fotos_galeria_list:
-                         if isinstance(file_obj, InMemoryUploadedFile):
+                        if isinstance(file_obj, InMemoryUploadedFile):
                             original_filename = file_obj.name
                             unique_filename = generate_unique_filename(original_filename)
                             b2_object_name = f"{settings.AWS_LOCATION}/fotos_galeria/{unique_filename}"
@@ -204,7 +302,7 @@ def editar_imovel(request, imovel_id):
 
                 # Se for limpar ou se uma nova foto foi enviada, limpa o campo antes do save principal
                 if limpar_foto_principal or (foto_principal_obj and isinstance(foto_principal_obj, InMemoryUploadedFile)):
-                     imovel_atualizado.foto_principal = None 
+                    imovel_atualizado.foto_principal = None 
 
                 print("Salvando dados do imóvel (sem/com foto antiga)...")
                 imovel_atualizado.save()
@@ -241,7 +339,7 @@ def editar_imovel(request, imovel_id):
                 if upload_principal_success and fotos_galeria_list:
                     print(f"Processando {len(fotos_galeria_list)} NOVAS fotos da galeria manualmente...")
                     for file_obj in fotos_galeria_list:
-                         if isinstance(file_obj, InMemoryUploadedFile):
+                        if isinstance(file_obj, InMemoryUploadedFile):
                             original_filename = file_obj.name
                             unique_filename = generate_unique_filename(original_filename)
                             b2_object_name = f"{settings.AWS_LOCATION}/fotos_galeria/{unique_filename}"
@@ -333,8 +431,8 @@ def perfil(request):
         
         # Se nenhum botão foi pressionado ou houve erro, inicializa ambos
         else:
-             user_form = UserUpdateForm(request.POST, instance=request.user) # Recarrega com POST data se houver erro
-             password_form = CustomPasswordChangeForm(request.user, request.POST) # Recarrega com POST data se houver erro
+            user_form = UserUpdateForm(request.POST, instance=request.user) # Recarrega com POST data se houver erro
+            password_form = CustomPasswordChangeForm(request.user, request.POST) # Recarrega com POST data se houver erro
     
     # Se for GET ou se houve erro no POST e precisamos re-renderizar
     else:
