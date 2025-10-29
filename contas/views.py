@@ -6,8 +6,6 @@ from .forms import CustomUserCreationForm, UserUpdateForm, CustomPasswordChangeF
 from imoveis.models import Imovel, Foto 
 from imoveis.forms import ImovelForm
 from django.contrib.auth import update_session_auth_hash
-
-# Imports para upload manual e marca d'água
 import traceback 
 import os 
 import boto3 
@@ -19,6 +17,8 @@ import uuid
 from pathlib import Path
 import math
 from django.core.files.storage import default_storage
+from django.conf import settings             # <-- 1. ADICIONE ESTE IMPORT
+from django.conf.urls.static import static # <-- 2. ADICIONE ESTE IMPORT
 
 # --- CORREÇÃO 1: Adicionar a função que estava faltando ---
 def generate_unique_filename(filename):
@@ -71,11 +71,10 @@ def upload_to_b2(file_obj, object_name):
                 text_height_orig = text_bbox_orig[3] - text_bbox_orig[1]
                 print(f"Dimensões originais do texto padrão: {text_width_orig}x{text_height_orig}")
             except AttributeError:
-                 # Fallback (caso textbbox não esteja disponível)
+                 # Fallback (caso textbbox não esteja disponível, o que é raro)
                  print("draw.textbbox não disponível? Usando textlength.")
                  text_width_orig = draw.textlength(text, font=font)
-                 # Estimar altura (muito básico)
-                 text_height_orig = 10 
+                 text_height_orig = 10 # Estima altura
                  print(f"Dimensões estimadas do texto padrão: {text_width_orig}x{text_height_orig}")
 
 
@@ -91,11 +90,6 @@ def upload_to_b2(file_obj, object_name):
             # --- Redimensionar a Imagem do Texto ---
             target_font_width_ratio = 0.75 
             target_text_width = int(img_width * target_font_width_ratio)
-            
-            # Evitar divisão por zero se a largura original for 0
-            if text_width_orig == 0:
-                raise ValueError("Largura original da fonte é 0, impossível calcular proporção.")
-            
             aspect_ratio = text_height_orig / text_width_orig
             target_text_height = int(target_text_width * aspect_ratio)
 
@@ -109,10 +103,6 @@ def upload_to_b2(file_obj, object_name):
                     print(f"Rotacionando texto em {angle} graus...")
                     pad_w = int(target_text_width * 0.1)
                     pad_h = int(target_text_height * 0.1)
-                    # Garante que padding não seja zero
-                    pad_w = max(1, pad_w)
-                    pad_h = max(1, pad_h)
-                    
                     padded_resized_img = Image.new('RGBA', (target_text_width + 2*pad_w, target_text_height + 2*pad_h), (0,0,0,0))
                     padded_resized_img.paste(text_img_resized, (pad_w, pad_h))
                     final_text_img = padded_resized_img.rotate(angle, expand=1, resample=Image.BICUBIC)
@@ -452,7 +442,7 @@ def editar_imovel(request, imovel_id):
 def excluir_imovel(request, imovel_id):
     imovel = get_object_or_404(Imovel, id=imovel_id, proprietario=request.user)
     if request.method == 'POST':
-        # TODO: Adicionar lógica para excluir fotos do B2 antes de deletar o objeto
+        # (Futura melhoria: excluir fotos do B2)
         imovel.delete()
         messages.success(request, 'Imóvel excluído com sucesso!')
         return redirect('meus_imoveis')
@@ -467,11 +457,12 @@ def excluir_foto(request, foto_id):
     foto = get_object_or_404(Foto, id=foto_id)
     imovel_id = foto.imovel.id
     if foto.imovel.proprietario == request.user:
-        # TODO: Adicionar lógica para excluir a foto do B2 antes de deletar o objeto
+        # (Futura melhoria: excluir foto do B2)
         foto.delete()
         messages.success(request, 'Foto excluída com sucesso.')
     else:
         messages.error(request, 'Você não tem permissão para excluir esta foto.')
+    # Corrigido para usar o ID do imóvel correto
     return redirect('editar_imovel', imovel_id=imovel_id) 
 
 # --- View "Perfil" (Original - Sem mudanças) ---
@@ -480,25 +471,29 @@ def perfil(request):
     if request.method == 'POST':
         if 'update_user' in request.POST:
             user_form = UserUpdateForm(request.POST, instance=request.user)
-            password_form = CustomPasswordChangeForm(request.user) 
+            password_form = CustomPasswordChangeForm(request.user) # Mantém o form de senha limpo
             if user_form.is_valid():
                 user_form.save()
                 messages.success(request, 'Suas informações foram atualizadas com sucesso!')
                 return redirect('perfil')
+            # Se o user_form não for válido, renderiza ambos os forms com erros
         
         elif 'change_password' in request.POST:
             password_form = CustomPasswordChangeForm(request.user, request.POST)
-            user_form = UserUpdateForm(instance=request.user) 
+            user_form = UserUpdateForm(instance=request.user) # Mantém o form de usuário com dados atuais
             if password_form.is_valid():
                 user = password_form.save()
                 update_session_auth_hash(request, user)
                 messages.success(request, 'Sua senha foi alterada com sucesso!')
                 return redirect('perfil')
+            # Se o password_form não for válido, renderiza ambos os forms com erros
         
+        # Se nenhum botão foi pressionado ou houve erro, inicializa ambos
         else:
-             user_form = UserUpdateForm(request.POST, instance=request.user) 
-             password_form = CustomPasswordChangeForm(request.user, request.POST) 
+             user_form = UserUpdateForm(request.POST, instance=request.user) # Recarrega com POST data se houver erro
+             password_form = CustomPasswordChangeForm(request.user, request.POST) # Recarrega com POST data se houver erro
     
+    # Se for GET ou se houve erro no POST e precisamos re-renderizar
     else:
         user_form = UserUpdateForm(instance=request.user)
         password_form = CustomPasswordChangeForm(request.user)
