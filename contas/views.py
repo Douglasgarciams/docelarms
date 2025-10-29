@@ -133,88 +133,89 @@ def anunciar_imovel(request):
 @login_required
 def editar_imovel(request, imovel_id):
     imovel = get_object_or_404(Imovel, id=imovel_id, proprietario=request.user)
-    
-    # --- DEBUG INICIAL ---
     print(f"--- Iniciando editar_imovel para ID: {imovel_id} ---")
     print(f"Método da Requisição: {request.method}")
-    # --- FIM DEBUG ---
 
     if request.method == 'POST':
         form = ImovelForm(request.POST, request.FILES, instance=imovel)
-        
-        # --- DEBUG FORM POST ---
         print("--- DEBUG FORM POST (Editar) ---")
-        print(f"Formulário instanciado com POST e FILES.")
-        # Limitando o print do request.POST
-        print(f"request.POST (primeiros 500 chars): {str(request.POST)[:500]}") 
-        print(f"request.FILES: {request.FILES}") # MUITO IMPORTANTE: Mostra os arquivos enviados
+        print(f"request.POST (primeiros 500 chars): {str(request.POST)[:500]}")
+        print(f"request.FILES: {request.FILES}")
         print(f"Form is_bound: {form.is_bound}")
-        # --- FIM DEBUG ---
 
         if form.is_valid():
-            # --- DEBUG FORM VÁLIDO ---
             print("Formulário (Editar) é VÁLIDO.")
-            # Limitando cleaned_data
             cleaned_data_preview = {k: v for k, v in form.cleaned_data.items() if k != 'descricao'}
             print(f"Dados limpos (sem descricao): {cleaned_data_preview}")
             print(f"Foto principal nos dados limpos: {form.cleaned_data.get('foto_principal')}")
-            # --- FIM DEBUG ---
+
+            # --- INÍCIO DO TESTE DIRETO BOTO3 ---
+            print("\n--- INICIANDO TESTE DIRETO BOTO3 ---")
             try:
-                # --- DEBUG ANTES DO SAVE ---
+                print("Tentando criar cliente S3 Boto3...")
+                # Usar as credenciais e endpoint lidos pelo settings.py via os.getenv
+                s3_client = boto3.client(
+                    's3',
+                    region_name=os.getenv("B2_REGION_NAME", "us-east-005"),
+                    endpoint_url=f"https://{os.getenv('B2_ENDPOINT')}",
+                    aws_access_key_id=os.getenv("B2_ACCESS_KEY_ID"),
+                    aws_secret_access_key=os.getenv("B2_SECRET_ACCESS_KEY")
+                )
+                print("Cliente S3 Boto3 criado com sucesso.")
+                print("Tentando listar buckets via Boto3...")
+                response = s3_client.list_buckets()
+                # A resposta real pode ser grande, logar apenas confirmação
+                print(f"Boto3 list_buckets SUCESSO. Encontrados {len(response.get('Buckets', []))} buckets.")
+                print(f"(Resposta parcial: {str(response)[:200]}...)") # Log parcial da resposta
+            except Exception as boto_err:
+                print(f"!!! ERRO no teste direto Boto3 !!!")
+                print(f"Tipo do erro: {type(boto_err)}")
+                print(f"Erro: {boto_err}")
+                traceback.print_exc() # Imprime o traceback completo do erro Boto3
+            print("--- FIM TESTE DIRETO BOTO3 ---\n")
+            # --- FIM DO TESTE DIRETO BOTO3 ---
+
+            try:
                 print("Tentando salvar o formulário (form.save())...")
-                # --- FIM DEBUG ---
-
-                imovel_salvo = form.save() # A MÁGICA (ou falha) do upload acontece aqui
-
-                # --- DEBUG DEPOIS DO SAVE ---
+                imovel_salvo = form.save()
                 print("form.save() EXECUTADO com sucesso.")
-                print(f"Imóvel salvo ID: {imovel_salvo.id}")
-                # Recarrega do banco
-                imovel_recarregado = Imovel.objects.get(id=imovel_salvo.id) 
+                imovel_recarregado = Imovel.objects.get(id=imovel_salvo.id)
                 print(f"Foto principal NO BANCO após save: {imovel_recarregado.foto_principal.name if imovel_recarregado.foto_principal else 'None'}")
                 if imovel_recarregado.foto_principal:
                     print(f"URL da foto principal gerada: {imovel_recarregado.foto_principal.url}")
-                # --- FIM DEBUG ---
 
-                # Lógica das fotos da galeria (mantida)
                 fotos_galeria = request.FILES.getlist('fotos_galeria')
-                print(f"Processando {len(fotos_galeria)} fotos da galeria...") # DEBUG
+                print(f"Processando {len(fotos_galeria)} fotos da galeria...")
                 for f in fotos_galeria:
                     try:
                         foto_obj = Foto.objects.create(imovel=imovel_salvo, imagem=f)
-                        print(f"Foto da galeria salva: {foto_obj.imagem.name}, URL: {foto_obj.imagem.url}") # DEBUG
+                        print(f"Foto da galeria salva: {foto_obj.imagem.name}, URL: {foto_obj.imagem.url}")
                     except Exception as e_galeria:
-                        print(f"!!! ERRO ao salvar foto da galeria: {f.name} !!!") # DEBUG
-                        print(e_galeria) # DEBUG
-                
+                        print(f"!!! ERRO ao salvar foto da galeria: {f.name} !!!")
+                        print(e_galeria)
+
                 messages.success(request, 'Imóvel atualizado com sucesso!')
-                print("Redirecionando para meus_imoveis...") # DEBUG
+                print("Redirecionando para meus_imoveis...")
                 return redirect('meus_imoveis')
 
-            except Exception as e: # Captura QUALQUER erro durante o form.save()
-                # --- DEBUG ERRO NO SAVE ---
+            except Exception as e:
                 print(f"!!! ERRO CRÍTICO DURANTE form.save() (editar_imovel) !!!")
                 print(f"Tipo do erro: {type(e)}")
                 print(f"Erro: {e}")
-                traceback.print_exc() # Imprime o traceback completo do erro
-                # --- FIM DEBUG ---
+                traceback.print_exc()
                 messages.error(request, f'Ocorreu um erro inesperado ao salvar: {e}')
-                # Não redireciona
 
-        else: # Se form.is_valid() for False
-            # --- DEBUG FORM INVÁLIDO ---
+        else:
             print("Formulário (Editar) NÃO é válido.")
             print("Erros do formulário:")
-            print(form.errors.as_text()) # Usar as_text para logs
-            # --- FIM DEBUG ---
+            print(form.errors.as_text())
             messages.error(request, 'Por favor, corrija os erros no formulário.')
 
-    else: # Se for GET
+    else:
         form = ImovelForm(instance=imovel)
-        print("Renderizando formulário (Editar) para GET.") # DEBUG
+        print("Renderizando formulário (Editar) para GET.")
 
-    # Renderiza o template em caso de GET ou erro no POST
-    print("Renderizando template anunciar_imovel.html (Editar)...") # DEBUG
+    print("Renderizando template anunciar_imovel.html (Editar)...")
     return render(request, 'contas/anunciar_imovel.html', {'form': form})
 
 
