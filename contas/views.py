@@ -25,18 +25,18 @@ def generate_unique_filename(filename):
 
 # Função upload_to_b2 (mantida, só será chamada em produção)
 def upload_to_b2(file_obj, object_name):
-    """Faz upload de um objeto de arquivo para B2 usando Boto3, aplicando marca d'ГЎgua repetida."""
+    """Faz upload de um objeto de arquivo para B2 usando Boto3, aplicando marca d'água centralizada."""
     print(f"--- Iniciando upload_to_b2 para: {object_name} ---")
     
-    # --- ETAPA 1: Aplicar Marca D'ГЎgua ---
+    # --- ETAPA 1: Aplicar Marca D'água ---
     try:
         print(f"Abrindo imagem para marca d'água...")
         img = Image.open(file_obj).convert("RGBA") # Abre a imagem garantindo canal Alpha
         img_width, img_height = img.size
         
-        # Cria uma camada transparente para o texto, do mesmo tamanho da imagem original
-        watermark_layer = Image.new('RGBA', img.size, (255, 255, 255, 0))
-        draw = ImageDraw.Draw(watermark_layer)
+        # Cria uma camada transparente para o texto
+        txt_layer = Image.new('RGBA', img.size, (255, 255, 255, 0))
+        draw = ImageDraw.Draw(txt_layer)
         
         text = "uso exclusivo de Docelarms"
         
@@ -44,11 +44,11 @@ def upload_to_b2(file_obj, object_name):
         text_color = (0, 0, 0, 128) # RGBA -> Preto, A=128 é ~50% de 255
         
         # --- Seleção da Fonte ---
-        # Ajuste o divisor para controlar o tamanho do texto repetido
-        # Um valor menor aqui = texto maior, um valor maior = texto menor
-        font_size = int(min(img_width, img_height) / 25) # Ex: Fonte menor para caber mais repetições
-        if font_size < 10: font_size = 10 # Tamanho mínimo
-        
+        # Tamanho da fonte proporcional à largura, MAIOR que antes
+        # Ajuste o divisor /15 para mais (menor) ou menos (maior) se necessário
+        font_size = int(img_width / 15) 
+        if font_size < 20: font_size = 20 # Tamanho mínimo razoável
+
         font = None
         font_path = None 
         try:
@@ -58,56 +58,44 @@ def upload_to_b2(file_obj, object_name):
                  font = ImageFont.truetype(font_path, font_size)
                  print(f"Usando fonte: {font_path}")
              else:
-                 print("Fonte específica não encontrada, tentando fonte padrão...")
+                 print("Fonte específica não encontrada, tentando fonte padrão (arial)...")
                  font = ImageFont.truetype("arial.ttf", font_size) 
         except IOError:
              print("Não foi possível carregar a fonte 'arial.ttf', usando fonte padrão do Pillow.")
              try:
-                 # Fonte padrão pode não aceitar tamanho, testar
                  font = ImageFont.load_default() 
+                 # load_default não aceita tamanho, pode ficar pequeno
              except Exception as font_e:
                  print(f"Erro ao carregar fonte: {font_e}. Marca d'água pode falhar.")
 
         if font:
-            # Calcula o tamanho aproximado do texto (pode variar com a fonte)
+            # Calcula o tamanho do texto para centralização precisa
             text_bbox = draw.textbbox((0, 0), text, font=font)
             text_width = text_bbox[2] - text_bbox[0]
             text_height = text_bbox[3] - text_bbox[1]
-
-            # Define o espaçamento entre as repetições (ajuste conforme necessário)
-            x_spacing = text_width * 1.5 
-            y_spacing = text_height * 4 # Espaçamento vertical maior
-
-            # Loop para desenhar o texto em toda a imagem
-            print(f"Desenhando marca d'água repetida...")
-            y = 0
-            row_count = 0
-            while y < img_height + text_height: # Continua um pouco além da borda inferior
-                # Alterna o início do X para criar um padrão diagonal/tijolo
-                start_x = -int(x_spacing / 2) if row_count % 2 != 0 else 0 
-                x = start_x
-                while x < img_width + text_width: # Continua um pouco além da borda direita
-                    # Desenha o texto na camada transparente
-                    draw.text((x, y), text, font=font, fill=text_color)
-                    x += x_spacing
-                y += y_spacing
-                row_count += 1
             
-            # Combina a camada de marca d'água com a imagem original
-            # Image.alpha_composite requer que ambas tenham canal alfa
-            img = Image.alpha_composite(img, watermark_layer)
+            # Calcula a posição central exata
+            x = (img_width - text_width) / 2
+            y = (img_height - text_height) / 2
+            
+            # Desenha o texto UMA VEZ na camada transparente
+            print(f"Desenhando marca d'água centralizada em ({x},{y})")
+            draw.text((x, y), text, font=font, fill=text_color)
+            
+            # Combina a camada de texto com a imagem original
+            img = Image.alpha_composite(img, txt_layer)
         
         # --- ETAPA 2: Salvar Imagem Modificada em Memória ---
-        # (Esta parte continua igual à anterior)
+        # (Esta parte continua igual)
         output_buffer = BytesIO()
         original_format = Image.open(file_obj).format 
         print(f"Salvando imagem com marca d'água no formato: {original_format}")        
         save_format = 'JPEG' if original_format and original_format.upper() != 'PNG' else 'PNG'        
         if save_format == 'JPEG':
              img = img.convert('RGB') 
-             img.save(output_buffer, format=save_format, quality=85) 
+             img.save(output_buffer, format=save_format, quality=85) # Qualidade JPEG
         else: 
-             img.save(output_buffer, format=save_format)              
+             img.save(output_buffer, format=save_format) # Salva PNG            
         output_buffer.seek(0) 
         file_obj_to_upload = output_buffer 
         content_type_to_upload = f'image/{save_format.lower()}'         
@@ -123,7 +111,7 @@ def upload_to_b2(file_obj, object_name):
         content_type_to_upload = file_obj.content_type 
 
     # --- ETAPA 3: Upload para B2 (usando file_obj_to_upload) ---
-    # (Esta parte continua igual à anterior)
+    # (Esta parte continua igual)
     try:
         s3_client = boto3.client(
             's3',
