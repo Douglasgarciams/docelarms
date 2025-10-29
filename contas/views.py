@@ -153,10 +153,9 @@ def editar_imovel(request, imovel_id):
             print(f"Foto principal nos dados limpos: {form.cleaned_data.get('foto_principal')}")
 
             # --- INÍCIO DO TESTE DIRETO BOTO3 ---
-            print("\n--- INICIANDO TESTE DIRETO BOTO3 ---")
+            print("\n--- INICIANDO TESTE DIRETO BOTO3 (PUT OBJECT) ---")
             try:
                 print("Tentando criar cliente S3 Boto3...")
-                # Usar as credenciais e endpoint lidos pelo settings.py via os.getenv
                 s3_client = boto3.client(
                     's3',
                     region_name=os.getenv("B2_REGION_NAME", "us-east-005"),
@@ -165,17 +164,27 @@ def editar_imovel(request, imovel_id):
                     aws_secret_access_key=os.getenv("B2_SECRET_ACCESS_KEY")
                 )
                 print("Cliente S3 Boto3 criado com sucesso.")
-                print("Tentando listar buckets via Boto3...")
-                response = s3_client.list_buckets()
-                # A resposta real pode ser grande, logar apenas confirmação
-                print(f"Boto3 list_buckets SUCESSO. Encontrados {len(response.get('Buckets', []))} buckets.")
-                print(f"(Resposta parcial: {str(response)[:200]}...)") # Log parcial da resposta
+
+                # Tenta fazer upload de um pequeno arquivo de teste direto via Boto3
+                test_file_content = b"Este eh um teste de upload do boto3."
+                test_file_key = f"{AWS_LOCATION}/boto3_test.txt" # Salva dentro da pasta media
+                bucket_name = os.getenv("B2_BUCKET_NAME")
+
+                print(f"Tentando fazer PutObject para BUCKET={bucket_name} KEY={test_file_key}...")
+                response = s3_client.put_object(
+                    Bucket=bucket_name,
+                    Key=test_file_key,
+                    Body=test_file_content,
+                    ContentType='text/plain' # Define o tipo do arquivo
+                )
+                print(f"Boto3 PutObject SUCESSO. Resposta: {response}")
+
             except Exception as boto_err:
-                print(f"!!! ERRO no teste direto Boto3 !!!")
+                print(f"!!! ERRO no teste direto Boto3 (PutObject) !!!")
                 print(f"Tipo do erro: {type(boto_err)}")
                 print(f"Erro: {boto_err}")
                 traceback.print_exc() # Imprime o traceback completo do erro Boto3
-            print("--- FIM TESTE DIRETO BOTO3 ---\n")
+            print("--- FIM TESTE DIRETO BOTO3 (PUT OBJECT) ---\n")
             # --- FIM DO TESTE DIRETO BOTO3 ---
 
             try:
