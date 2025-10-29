@@ -24,86 +24,183 @@ def generate_unique_filename(filename):
     return new_filename
 
 # Função upload_to_b2 (mantida, só será chamada em produção)
+Okay, analisando os logs mais recentes, temos a resposta para a marca d'água!
+
+Diagnóstico
+O erro continua sendo relacionado à fonte, mas é um erro diferente do anterior:
+
+Snippet de código
+
+--- Iniciando upload_to_b2 para: media/fotos_imoveis/7a0be5d9-b3ea-4489-9cef-b7a1958464de.jpg ---
+Abrindo imagem para marca d'água...
+Carregando fonte padrão do Pillow...
+!!! ERRO ao aplicar marca d'água !!!
+Tipo do erro: <class 'AttributeError'>
+Erro: 'FreeTypeFont' object has no attribute 'getsize'
+Traceback (most recent call last):
+  File "/opt/render/project/src/contas/views.py", line 56, in upload_to_b2
+    text_width_orig, text_height_orig = font.getsize(text) # Método para fonte padrão
+                                        ^^^^^^^^^^^^
+AttributeError: 'FreeTypeFont' object has no attribute 'getsize'
+O Problema: O erro AttributeError: 'FreeTypeFont' object has no attribute 'getsize' significa que estamos tentando usar o método .getsize() em um objeto de fonte (font) que não possui esse método.
+
+Por que isso aconteceu? Na última versão do código (para redimensionar a fonte padrão), eu usei font.getsize(text). Esse método era usado em versões antigas do Pillow para fontes padrão. Em versões mais recentes do Pillow (que você provavelmente está usando), o método correto para obter as dimensões do texto, mesmo para fontes carregadas com ImageFont.truetype (como arial.ttf no nosso fallback) ou até mesmo com load_default (embora com limitações), é usar os métodos do objeto ImageDraw.
+
+Nós tínhamos a lógica correta (usando draw.textbbox ou draw.textsize) na versão anterior do código, mas eu a removi incorretamente ao tentar simplificar para load_default.
+
+✅ Solução (Corrigir o Cálculo do Tamanho)
+Vamos corrigir a função upload_to_b2 para usar o método correto (draw.textlength ou draw.textbbox) para calcular o tamanho do texto, independentemente se a fonte Roboto foi carregada ou se usamos o fallback arial.
+
+Ação: Substitua apenas a função upload_to_b2 em contas/views.py por esta versão corrigida:
+
+Python
+
+# Em contas/views.py
+
+# ... (outros imports, incluindo PIL, BytesIO, etc.) ...
+import math 
+import uuid
+from pathlib import Path
+from io import BytesIO
+from PIL import Image, ImageDraw, ImageFont
+
+# ... (função generate_unique_filename) ...
+
+# Função auxiliar para fazer o upload manual via Boto3 (COM MARCA D'ÁGUA GRANDE CENTRALIZADA - CORRIGIDO)
 def upload_to_b2(file_obj, object_name):
-    """Faz upload de um objeto de arquivo para B2 usando Boto3, aplicando marca d'água centralizada e grande com fonte padrão."""
+    """Faz upload de um objeto de arquivo para B2 usando Boto3, aplicando marca d'água centralizada e grande."""
     print(f"--- Iniciando upload_to_b2 para: {object_name} ---")
     
     # --- ETAPA 1: Aplicar Marca D'água ---
     try:
         print(f"Abrindo imagem para marca d'água...")
-        img = Image.open(file_obj).convert("RGBA") # Abre a imagem garantindo canal Alpha
+        img = Image.open(file_obj).convert("RGBA") 
         img_width, img_height = img.size
         
-        # Cria uma camada transparente para o texto final
         watermark_layer = Image.new('RGBA', img.size, (255, 255, 255, 0))
+        draw = ImageDraw.Draw(watermark_layer) # Criar o objeto Draw aqui
         
         text = "uso exclusivo de Docelarms"
+        text_color = (0, 0, 0, 128) 
         
-        # Define a cor e opacidade (PRETO com 50% de alfa)
-        text_color = (0, 0, 0, 128) # RGBA -> Preto, A=128 é ~50% de 255
+        # --- Seleção da Fonte ---
+        font_size = 1 # Começar pequeno para o cálculo iterativo
+        font = None
+        font_path = os.path.join(settings.BASE_DIR, 'static', 'fonts', 'Roboto-VariableFont_wght.ttf') 
         
-        # --- Usar Fonte Padrão ---
+        # --- Carregar a Fonte ---
         try:
-            print("Carregando fonte padrão do Pillow...")
-            font = ImageFont.load_default() 
-        except Exception as font_e:
-            print(f"Erro ao carregar fonte padrão: {font_e}. Marca d'água pode falhar.")
-            font = None # Garante que 'font' existe
+             if font_path and os.path.exists(font_path):
+                 print(f"Tentando carregar fonte: {font_path}")
+                 # Carrega a fonte com um tamanho inicial pequeno para o loop
+                 font_to_test = ImageFont.truetype(font_path, font_size) 
+                 print(f"Fonte {font_path} carregada inicialmente.")
+             else:
+                 print(f"Fonte especificada NÃO encontrada: {font_path}. Tentando arial.ttf...")
+                 font_to_test = ImageFont.truetype("arial.ttf", font_size)
+                 print("Fonte arial.ttf carregada inicialmente.")
+        except IOError as e:
+             print(f"Não foi possível carregar fonte TTF (arial ou especificada): {e}. Usando fonte padrão.")
+             try:
+                 font = ImageFont.load_default() # Carrega a fonte padrão
+                 font_to_test = font # Usa a fonte padrão para o cálculo (tamanho fixo)
+                 # Se usarmos load_default, o cálculo iterativo de tamanho não funcionará bem, 
+                 # mas pelo menos não dará erro. O texto pode ficar pequeno.
+             except Exception as font_e:
+                 print(f"Erro CRÍTICO ao carregar fonte padrão: {font_e}. Pulando marca d'água.")
+                 raise # Re-levanta a exceção para pular para o bloco 'except img_e'
 
-        if font:
-            # Desenhar o texto pequeno em uma imagem temporária
-            # Usar textsize na fonte padrão para saber o tamanho original
-            text_width_orig, text_height_orig = font.getsize(text) # Método para fonte padrão
+        # --- Encontrar Tamanho Ideal (se não for load_default) ---
+        if font is None: # Só faz o loop se carregamos uma fonte Truetype
+            target_font_width_ratio = 0.75 
+            print("Calculando tamanho de fonte ideal...")
+            while True:
+                # CORREÇÃO: Usar draw.textlength() ou draw.textbbox()
+                # draw.textlength() é mais simples se só precisamos da largura
+                text_width_test = draw.textlength(text, font=font_to_test)
+                
+                # Para pegar altura também (mais preciso com textbbox se disponível):
+                # try: 
+                #     bbox = draw.textbbox((0,0), text, font=font_to_test)
+                #     text_width_test = bbox[2] - bbox[0]
+                # except AttributeError: # Fallback para versões mais antigas do Pillow
+                #     text_width_test, _ = draw.textsize(text, font=font_to_test)
 
-            # Cria imagem temporária só pro texto original
-            text_img_orig = Image.new('RGBA', (text_width_orig, text_height_orig), (0,0,0,0))
-            text_draw_orig = ImageDraw.Draw(text_img_orig)
-            text_draw_orig.text((0, 0), text, font=font, fill=text_color)
-
-            # --- Redimensionar a Imagem do Texto ---
-            # Calcular a nova largura desejada (ex: 75% da largura da imagem principal)
-            target_text_width = int(img_width * 0.75)
+                if text_width_test < img_width * target_font_width_ratio and font_size < 500: 
+                    font_size += 1
+                    # Recarrega a fonte com o novo tamanho
+                    try:
+                        if font_path and os.path.exists(font_path):
+                            font_to_test = ImageFont.truetype(font_path, font_size)
+                        else:
+                            font_to_test = ImageFont.truetype("arial.ttf", font_size)
+                    except IOError: # Se falhar ao recarregar (improvável aqui), para
+                         print("Erro ao recarregar fonte durante loop de tamanho.")
+                         font_size -=1 # Usa o último tamanho válido
+                         break
+                else:
+                    font_size -= 1 
+                    if font_size < 1: font_size = 1 # Garante tamanho mínimo > 0
+                    break
             
-            # Calcular a nova altura mantendo a proporção
-            aspect_ratio = text_height_orig / text_width_orig
-            target_text_height = int(target_text_width * aspect_ratio)
+            # Carrega a fonte final com o tamanho calculado
+            try:
+                if font_path and os.path.exists(font_path):
+                    font = ImageFont.truetype(font_path, font_size)
+                else:
+                    font = ImageFont.truetype("arial.ttf", font_size)
+                print(f"Fonte final carregada com tamanho: {font_size}")
+            except IOError:
+                 print("Erro ao carregar fonte final. Usando fonte padrão.")
+                 font = ImageFont.load_default()
 
-            if target_text_width > 0 and target_text_height > 0:
-                print(f"Redimensionando texto de ({text_width_orig}x{text_height_orig}) para ({target_text_width}x{target_text_height})")
-                # Redimensiona a imagem temporária do texto usando um filtro de alta qualidade
-                text_img_resized = text_img_orig.resize((target_text_width, target_text_height), Image.Resampling.LANCZOS) # Ou BICUBIC
-    
-                # Calcula a posição central para colar a imagem redimensionada
-                x = (img_width - target_text_width) / 2
-                y = (img_height - target_text_height) / 2
-                
-                # Cola a imagem do texto redimensionado na camada de marca d'água
-                print(f"Colando marca d'água redimensionada em ({x},{y})")
-                watermark_layer.paste(text_img_resized, (int(x), int(y)), text_img_resized) # Usa a própria imagem como máscara alfa
-                
-                # Combina a camada de texto com a imagem original
-                img = Image.alpha_composite(img, watermark_layer)
-            else:
-                print("Dimensões calculadas para redimensionamento são inválidas. Pulando marca d'água.")
+        # --- Desenhar Marca D'água ---
+        if font:
+            # CORREÇÃO: Usar draw.textbbox() para obter dimensões precisas com a fonte final
+            try:
+                text_bbox = draw.textbbox((0, 0), text, font=font)
+                text_width = text_bbox[2] - text_bbox[0]
+                text_height = text_bbox[3] - text_bbox[1]
+            except AttributeError: # Fallback se textbbox não existir
+                print("Usando draw.textsize() como fallback para dimensões.")
+                # textsize pode ser menos preciso
+                text_width, text_height = draw.textsize(text, font=font) 
+
+            # Criar imagem temporária para rotação
+            text_padding = int(max(text_width, text_height) * 0.1) if text_width > 0 and text_height > 0 else 10
+            text_img_size_w = text_width + 2*text_padding
+            text_img_size_h = text_height + 2*text_padding
+            if text_img_size_w <= 0 or text_img_size_h <=0: # Sanity check
+                print("Dimensões inválidas para imagem de texto. Pulando marca d'água.")
+                raise ValueError("Dimensões de texto inválidas")
+
+            text_img = Image.new('RGBA', (text_img_size_w, text_img_size_h), (0,0,0,0))
+            text_draw = ImageDraw.Draw(text_img)
+            # Desenha o texto *dentro* da imagem temporária com padding
+            text_draw.text((text_padding, text_padding), text, font=font, fill=text_color) 
+            
+            angle = 20 
+            rotated_text_img = text_img.rotate(angle, expand=1, resample=Image.BICUBIC)
+            rotated_width, rotated_height = rotated_text_img.size
+
+            x = (img_width - rotated_width) / 2
+            y = (img_height - rotated_height) / 2
+            
+            print(f"Colando marca d'água rotacionada em ({x},{y})")
+            watermark_layer.paste(rotated_text_img, (int(x), int(y)), rotated_text_img)
+            
+            img = Image.alpha_composite(img, watermark_layer)
+        else:
+             print("Não foi possível carregar nenhuma fonte. Pulando marca d'água.")
 
         # --- ETAPA 2: Salvar Imagem Modificada em Memória ---
-        # (Esta parte continua igual)
+        # (Sem alterações aqui)
         output_buffer = BytesIO()
-        original_format = Image.open(file_obj).format 
-        print(f"Salvando imagem com marca d'água no formato: {original_format}")        
-        save_format = 'JPEG' if original_format and original_format.upper() != 'PNG' else 'PNG'        
-        if save_format == 'JPEG':
-             img = img.convert('RGB') 
-             img.save(output_buffer, format=save_format, quality=85) 
-        else: 
-             img.save(output_buffer, format=save_format)              
-        output_buffer.seek(0) 
-        file_obj_to_upload = output_buffer 
-        content_type_to_upload = f'image/{save_format.lower()}'         
-        print("Imagem com marca d'água pronta para upload.")
+        # ... (resto da lógica de salvar) ...
+        # Garantir que file_obj_to_upload e content_type_to_upload sejam definidos
 
     except Exception as img_e:
-        print(f"!!! ERRO ao aplicar marca d'água !!!")
+        print(f"!!! ERRO GERAL ao aplicar marca d'água !!!") # Mudado para erro geral
         print(f"Erro: {img_e}")
         traceback.print_exc()
         print("Prosseguindo com upload da imagem ORIGINAL.")
