@@ -133,7 +133,7 @@ AWS_S3_REGION_NAME = os.getenv("B2_REGION_NAME", "us-east-005")
 AWS_S3_ENDPOINT_URL = f"https://{os.getenv('B2_ENDPOINT')}"
 AWS_QUERYSTRING_AUTH = False
 AWS_DEFAULT_ACL = None
-AWS_S3_FILE_OVERWRITE = True # Mantivemos True do teste anterior
+AWS_S3_FILE_OVERWRITE = False
 
 # Pasta dentro do bucket
 AWS_LOCATION = 'media'
