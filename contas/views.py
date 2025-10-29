@@ -24,49 +24,6 @@ def generate_unique_filename(filename):
     return new_filename
 
 # Função upload_to_b2 (mantida, só será chamada em produção)
-Okay, analisando os logs mais recentes, temos a resposta para a marca d'água!
-
-Diagnóstico
-O erro continua sendo relacionado à fonte, mas é um erro diferente do anterior:
-
-Snippet de código
-
---- Iniciando upload_to_b2 para: media/fotos_imoveis/7a0be5d9-b3ea-4489-9cef-b7a1958464de.jpg ---
-Abrindo imagem para marca d'água...
-Carregando fonte padrão do Pillow...
-!!! ERRO ao aplicar marca d'água !!!
-Tipo do erro: <class 'AttributeError'>
-Erro: 'FreeTypeFont' object has no attribute 'getsize'
-Traceback (most recent call last):
-  File "/opt/render/project/src/contas/views.py", line 56, in upload_to_b2
-    text_width_orig, text_height_orig = font.getsize(text) # Método para fonte padrão
-                                        ^^^^^^^^^^^^
-AttributeError: 'FreeTypeFont' object has no attribute 'getsize'
-O Problema: O erro AttributeError: 'FreeTypeFont' object has no attribute 'getsize' significa que estamos tentando usar o método .getsize() em um objeto de fonte (font) que não possui esse método.
-
-Por que isso aconteceu? Na última versão do código (para redimensionar a fonte padrão), eu usei font.getsize(text). Esse método era usado em versões antigas do Pillow para fontes padrão. Em versões mais recentes do Pillow (que você provavelmente está usando), o método correto para obter as dimensões do texto, mesmo para fontes carregadas com ImageFont.truetype (como arial.ttf no nosso fallback) ou até mesmo com load_default (embora com limitações), é usar os métodos do objeto ImageDraw.
-
-Nós tínhamos a lógica correta (usando draw.textbbox ou draw.textsize) na versão anterior do código, mas eu a removi incorretamente ao tentar simplificar para load_default.
-
-✅ Solução (Corrigir o Cálculo do Tamanho)
-Vamos corrigir a função upload_to_b2 para usar o método correto (draw.textlength ou draw.textbbox) para calcular o tamanho do texto, independentemente se a fonte Roboto foi carregada ou se usamos o fallback arial.
-
-Ação: Substitua apenas a função upload_to_b2 em contas/views.py por esta versão corrigida:
-
-Python
-
-# Em contas/views.py
-
-# ... (outros imports, incluindo PIL, BytesIO, etc.) ...
-import math 
-import uuid
-from pathlib import Path
-from io import BytesIO
-from PIL import Image, ImageDraw, ImageFont
-
-# ... (função generate_unique_filename) ...
-
-# Função auxiliar para fazer o upload manual via Boto3 (COM MARCA D'ÁGUA GRANDE CENTRALIZADA - CORRIGIDO)
 def upload_to_b2(file_obj, object_name):
     """Faz upload de um objeto de arquivo para B2 usando Boto3, aplicando marca d'água centralizada e grande."""
     print(f"--- Iniciando upload_to_b2 para: {object_name} ---")
