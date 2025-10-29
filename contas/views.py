@@ -7,6 +7,9 @@ from imoveis.models import Imovel, Foto
 from imoveis.forms import ImovelForm
 from django.contrib.auth import update_session_auth_hash
 import traceback # Importar para o traceback
+import os 
+import boto3
+print("--- views.py: boto3 IMPORTADO COM SUCESSO ---")
 
 # --- View de Cadastro (Original) ---
 def cadastro(request):
