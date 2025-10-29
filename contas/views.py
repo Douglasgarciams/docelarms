@@ -16,24 +16,20 @@ from PIL import Image, ImageDraw, ImageFont
 import uuid
 from pathlib import Path
 import math
+from django.core.files.storage import default_storage
 
 # Função generate_unique_filename (mantida)
-def generate_unique_filename(filename):
-    ext = Path(filename).suffix
-    new_filename = f"{uuid.uuid4()}{ext}"
-    return new_filename
-
-# Função auxiliar para fazer o upload manual via Boto3 (ESCOPO CORRIGIDO)
+# Função auxiliar para fazer o upload (USANDO DJANGO STORAGE PADRÃO E FONTE PADRÃO)
 def upload_to_b2(file_obj, object_name):
     """Faz upload de um objeto de arquivo usando o storage padrão do Django, 
        aplicando marca d'água grande com fonte padrão."""
     print(f"--- Iniciando upload_to_b2 para: {object_name} ---")
     
-    file_obj_to_upload = None # Inicializa
+    file_obj_to_upload = None 
     # --- Definir variáveis de fallback PRIMEIRO ---
     file_obj.seek(0) 
     file_obj_to_upload = file_obj
-    content_type_to_upload = file_obj.content_type # Salva o content type original
+    content_type_to_upload = file_obj.content_type 
     watermark_applied = False 
 
     # --- ETAPA 1: Tentar Aplicar Marca D'água ---
@@ -65,22 +61,25 @@ def upload_to_b2(file_obj, object_name):
                 text_height_orig = text_bbox_orig[3] - text_bbox_orig[1]
                 print(f"Dimensões originais do texto padrão: {text_width_orig}x{text_height_orig}")
             except AttributeError:
-                # Fallback MUITO antigo (improvável necessário com Pillow recente)
-                print("Usando draw.textsize() como fallback para fonte padrão.")
-                text_width_orig, text_height_orig = draw.textsize(text, font=font)
+                 # Fallback muito antigo, improvável
+                 print("draw.textbbox não disponível? Usando textlength (apenas largura).")
+                 text_width_orig = draw.textlength(text, font=font)
+                 # Estimar altura (muito básico, pode distorcer)
+                 text_height_orig = font.getbbox("A")[3] - font.getbbox("A")[1] if hasattr(font, 'getbbox') else 10 
+                 print(f"Dimensões estimadas do texto padrão: {text_width_orig}x{text_height_orig}")
+
 
             if text_width_orig <= 0 or text_height_orig <= 0:
-                 print("Fonte padrão retornou tamanho inválido. Pulando marca d'água.")
-                 raise ValueError("Tamanho de fonte padrão inválido")
+                  print("Fonte padrão retornou tamanho inválido. Pulando marca d'água.")
+                  raise ValueError("Tamanho de fonte padrão inválido")
 
             # Cria imagem temporária só pro texto original
             text_img_orig = Image.new('RGBA', (text_width_orig, text_height_orig), (0,0,0,0))
             text_draw_orig = ImageDraw.Draw(text_img_orig)
-            # Desenha na posição (0,0) dentro da imagem temporária pequena
             text_draw_orig.text((0, 0), text, font=font, fill=text_color) 
 
             # --- Redimensionar a Imagem do Texto ---
-            target_font_width_ratio = 0.75 # 75% da largura da imagem
+            target_font_width_ratio = 0.75 
             target_text_width = int(img_width * target_font_width_ratio)
             aspect_ratio = text_height_orig / text_width_orig
             target_text_height = int(target_text_width * aspect_ratio)
@@ -89,11 +88,10 @@ def upload_to_b2(file_obj, object_name):
                 print(f"Redimensionando texto de ({text_width_orig}x{text_height_orig}) para ({target_text_width}x{target_text_height})")
                 text_img_resized = text_img_orig.resize((target_text_width, target_text_height), Image.Resampling.LANCZOS)
     
-                # --- Rotação (Opcional - Remova se não quiser) ---
-                angle = 0 # <<-- DEFINA 0 PARA NÃO ROTACIONAR, ou mantenha 20 se preferir
+                # --- Rotação (Opcional) ---
+                angle = 20 # Mantenha 0 se não quiser rotação
                 if angle != 0:
                     print(f"Rotacionando texto em {angle} graus...")
-                    # Adiciona padding ANTES de rotacionar para evitar cortes
                     pad_w = int(target_text_width * 0.1)
                     pad_h = int(target_text_height * 0.1)
                     padded_resized_img = Image.new('RGBA', (target_text_width + 2*pad_w, target_text_height + 2*pad_h), (0,0,0,0))
@@ -102,12 +100,10 @@ def upload_to_b2(file_obj, object_name):
                 else:
                     final_text_img = text_img_resized # Sem rotação
                 
-                # Calcula dimensões e posição da imagem final do texto (rotacionada ou não)
                 final_text_width, final_text_height = final_text_img.size
                 x = (img_width - final_text_width) / 2
                 y = (img_height - final_text_height) / 2
                 
-                # Cola a imagem do texto (grande, possivelmente rotacionada) na camada de marca d'água
                 print(f"Colando marca d'água final em ({x},{y})")
                 watermark_layer.paste(final_text_img, (int(x), int(y)), final_text_img) 
                 
@@ -116,8 +112,7 @@ def upload_to_b2(file_obj, object_name):
             else:
                 print("Dimensões calculadas inválidas. Pulando marca d'água.")
         else:
-             # Este caso não deve acontecer se load_default funcionar
-             print("Não foi possível carregar fonte padrão. Pulando marca d'água.")
+              print("Não foi possível carregar fonte padrão. Pulando marca d'água.")
 
         # --- ETAPA 2: Salvar Imagem Modificada em Memória (SE APLICADA) ---
         if watermark_applied:
@@ -132,7 +127,7 @@ def upload_to_b2(file_obj, object_name):
                  img.save(output_buffer, format=save_format)              
             output_buffer.seek(0) 
             file_obj_to_upload = output_buffer 
-            content_type_to_upload = f'image/{save_format.lower()}' # Define content type AQUI       
+            content_type_to_upload = f'image/{save_format.lower()}'          
             print("Imagem com marca d'água pronta para salvar.")
         # Se watermark_applied for False, as variáveis de fallback (imagem original) são usadas
 
@@ -143,19 +138,18 @@ def upload_to_b2(file_obj, object_name):
         print("Prosseguindo com salvamento da imagem ORIGINAL.")
         file_obj.seek(0) 
         file_obj_to_upload = file_obj 
-        content_type_to_upload = file_obj.content_type # Define content type AQUI também
+        content_type_to_upload = file_obj.content_type 
 
     # --- ETAPA 3: Upload/Save usando o Storage Padrão ---
     try:
         if file_obj_to_upload is None: 
-             print("!!! ERRO: file_obj_to_upload não definido. Pulando save. !!!")
-             return False
+              print("!!! ERRO: file_obj_to_upload não definido. Pulando save. !!!")
+              return False
 
         print(f"Executando default_storage.save(): Name={object_name}")
-        # Passa o nome completo (com AWS_LOCATION) e o objeto de arquivo (original ou buffer)
         actual_name = default_storage.save(object_name, file_obj_to_upload) 
         print(f"SUCESSO: default_storage.save() concluído. Nome real salvo: {actual_name}")
-        return actual_name # Retorna o nome do arquivo como salvo
+        return actual_name 
 
     except Exception as e:
         print(f"!!! ERRO no default_storage.save() para {object_name} !!!")
