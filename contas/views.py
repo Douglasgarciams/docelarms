@@ -3,29 +3,91 @@ from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from .forms import CustomUserCreationForm, UserUpdateForm, CustomPasswordChangeForm
-from imoveis.models import Imovel, Foto # Importar Imovel, Foto
+from imoveis.models import Imovel, Foto 
 from imoveis.forms import ImovelForm
 from django.contrib.auth import update_session_auth_hash
 import traceback 
 import os 
 import boto3 
 from django.conf import settings 
-from django.core.files.uploadedfile import InMemoryUploadedFile # Importar para checar tipo
-
-# Função auxiliar para gerar nome de arquivo único (opcional, mas bom)
+from django.core.files.uploadedfile import InMemoryUploadedFile 
+from io import BytesIO
+from PIL import Image, ImageDraw, ImageFont
 import uuid
 from pathlib import Path
 
+# Função generate_unique_filename (mantida)
 def generate_unique_filename(filename):
-    """Gera um nome de arquivo único mantendo a extensão."""
     ext = Path(filename).suffix
     new_filename = f"{uuid.uuid4()}{ext}"
     return new_filename
 
-# Função auxiliar para fazer o upload manual via Boto3
+# Função upload_to_b2 (mantida, só será chamada em produção)
 def upload_to_b2(file_obj, object_name):
-    """Faz upload de um objeto de arquivo para B2 usando Boto3."""
-    print(f"--- Iniciando upload_to_b2 para: {object_name} ---")
+    # ... (código da função upload_to_b2 com marca d'água continua aqui, sem alterações) ...
+    # (Copie a função completa da mensagem anterior aqui)
+    print(f"--- Iniciando upload_to_b2 para: {object_name} ---")    
+    # --- ETAPA 1: Aplicar Marca D'água ---
+    try:
+        print(f"Abrindo imagem para marca d'água...")
+        img = Image.open(file_obj).convert("RGBA") 
+        img_width, img_height = img.size        
+        txt_layer = Image.new('RGBA', img.size, (255, 255, 255, 0))
+        draw = ImageDraw.Draw(txt_layer)        
+        text = "Uso exclusivo de Docelarms"        
+        font_size = int(img_width / 20) 
+        font = None
+        font_path = None         
+        try:
+             # font_path = os.path.join(settings.BASE_DIR, 'static', 'fonts', 'arial.ttf') # Exemplo
+             if font_path and os.path.exists(font_path):
+                 font = ImageFont.truetype(font_path, font_size)
+                 print(f"Usando fonte: {font_path}")
+             else:
+                 print("Fonte específica não encontrada, tentando fonte padrão...")
+                 font = ImageFont.truetype("arial.ttf", font_size) 
+        except IOError:
+             print("Não foi possível carregar a fonte 'arial.ttf', usando fonte padrão do Pillow.")
+             try:
+                 font = ImageFont.load_default()
+             except Exception as font_e:
+                 print(f"Erro ao carregar fonte padrão: {font_e}. Marca d'água pode falhar.")
+
+        if font:
+            text_bbox = draw.textbbox((0, 0), text, font=font)
+            text_width = text_bbox[2] - text_bbox[0]
+            text_height = text_bbox[3] - text_bbox[1]            
+            x = (img_width - text_width) / 2
+            y = (img_height - text_height) / 2            
+            text_color = (255, 255, 255, 128)             
+            print(f"Desenhando marca d'água em ({x},{y})")
+            draw.text((x, y), text, font=font, fill=text_color)            
+            img = Image.alpha_composite(img, txt_layer)
+        
+        output_buffer = BytesIO()
+        original_format = Image.open(file_obj).format 
+        print(f"Salvando imagem com marca d'água no formato: {original_format}")        
+        save_format = 'JPEG' if original_format and original_format.upper() != 'PNG' else 'PNG'        
+        if save_format == 'JPEG':
+             img = img.convert('RGB') 
+             img.save(output_buffer, format=save_format, quality=85) 
+        else: 
+             img.save(output_buffer, format=save_format)              
+        output_buffer.seek(0) 
+        file_obj_to_upload = output_buffer 
+        content_type_to_upload = f'image/{save_format.lower()}'         
+        print("Imagem com marca d'água pronta para upload.")
+
+    except Exception as img_e:
+        print(f"!!! ERRO ao aplicar marca d'água !!!")
+        print(f"Erro: {img_e}")
+        traceback.print_exc()
+        print("Prosseguindo com upload da imagem ORIGINAL.")
+        file_obj.seek(0) 
+        file_obj_to_upload = file_obj 
+        content_type_to_upload = file_obj.content_type 
+
+    # --- ETAPA 3: Upload para B2 (usando file_obj_to_upload) ---
     try:
         s3_client = boto3.client(
             's3',
@@ -35,28 +97,22 @@ def upload_to_b2(file_obj, object_name):
             aws_secret_access_key=os.getenv("B2_SECRET_ACCESS_KEY")
         )
         print("Cliente S3 Boto3 criado.")
-
-        bucket_name = os.getenv("B2_BUCKET_NAME")
-        
-        # Voltar ao início do arquivo para leitura
-        file_obj.seek(0) 
-        
-        print(f"Executando put_object: Bucket={bucket_name}, Key={object_name}, ContentType={file_obj.content_type}")
+        bucket_name = os.getenv("B2_BUCKET_NAME")        
+        print(f"Executando put_object: Bucket={bucket_name}, Key={object_name}, ContentType={content_type_to_upload}")
         s3_client.put_object(
             Bucket=bucket_name,
             Key=object_name,
-            Body=file_obj,
-            ContentType=file_obj.content_type # Usa o content type detectado pelo Django
+            Body=file_obj_to_upload, 
+            ContentType=content_type_to_upload 
         )
         print(f"SUCESSO: Upload Boto3 concluído para {object_name}")
-        return True # Indica sucesso
+        return True 
+
     except Exception as e:
         print(f"!!! ERRO no upload_to_b2 para {object_name} !!!")
-        print(f"Tipo do erro: {type(e)}")
         print(f"Erro: {e}")
         traceback.print_exc()
-        return False # Indica falha
-print("--- views.py: boto3 IMPORTADO COM SUCESSO ---")
+        return False
 
 # --- View de Cadastro (Original) ---
 def cadastro(request):
@@ -87,82 +143,98 @@ def meus_imoveis(request):
 # --- View "Anunciar Imóvel" (COM UPLOAD MANUAL BOTO3) ---
 @login_required
 def anunciar_imovel(request):
-    print(f"--- Iniciando anunciar_imovel ---")
+    print(f"--- Iniciando anunciar_imovel --- | DEBUG={settings.DEBUG}") # Log DEBUG status
     print(f"Método da Requisição: {request.method}")
 
     if request.method == 'POST':
         form = ImovelForm(request.POST, request.FILES)
-        print("--- DEBUG FORM POST (Anunciar) ---")
         print(f"request.FILES: {request.FILES}") 
 
         if form.is_valid():
             print("Formulário (Anunciar) é VÁLIDO.")
-            foto_principal_obj = form.cleaned_data.get('foto_principal')
-            fotos_galeria_list = request.FILES.getlist('fotos_galeria') # Pegar direto do request.FILES
+            
+            # --- LÓGICA CONDICIONAL ---
+            if not settings.DEBUG: 
+                # --- LÓGICA DE PRODUÇÃO (Render com B2 Manual) ---
+                print("--- MODO PRODUÇÃO (B2 Manual) ---")
+                foto_principal_obj = form.cleaned_data.get('foto_principal')
+                fotos_galeria_list = request.FILES.getlist('fotos_galeria') 
+                try:
+                    imovel = form.save(commit=False)
+                    imovel.proprietario = request.user
+                    imovel.foto_principal = None # Limpa temporariamente
+                    imovel.save() 
+                    print(f"Imóvel salvo (sem foto) ID: {imovel.id}")
 
-            try:
-                # 1. Salva os dados do Imovel SEM a foto principal primeiro
-                imovel = form.save(commit=False)
-                imovel.proprietario = request.user
-                imovel.foto_principal = None # Limpa o campo de foto temporariamente
-                print("Salvando dados do imóvel (sem foto ainda)...")
-                imovel.save() 
-                print(f"Imóvel salvo (sem foto) ID: {imovel.id}")
+                    upload_principal_success = True
+                    if foto_principal_obj and isinstance(foto_principal_obj, InMemoryUploadedFile):
+                        original_filename = foto_principal_obj.name
+                        unique_filename = generate_unique_filename(original_filename)
+                        b2_object_name = f"{settings.AWS_LOCATION}/fotos_imoveis/{unique_filename}" 
+                        print(f"Iniciando upload manual B2 para foto principal: {b2_object_name}")
+                        upload_principal_success = upload_to_b2(foto_principal_obj, b2_object_name)
+                        if upload_principal_success:
+                            imovel.foto_principal.name = f"fotos_imoveis/{unique_filename}" 
+                            imovel.save(update_fields=['foto_principal']) 
+                        else:
+                            messages.error(request, f'Falha ao fazer upload da foto principal: {original_filename}')
+                    
+                    if upload_principal_success and fotos_galeria_list:
+                        print(f"Processando {len(fotos_galeria_list)} fotos da galeria B2...")
+                        for file_obj in fotos_galeria_list:
+                             if isinstance(file_obj, InMemoryUploadedFile):
+                                original_filename = file_obj.name
+                                unique_filename = generate_unique_filename(original_filename)
+                                b2_object_name = f"{settings.AWS_LOCATION}/fotos_galeria/{unique_filename}"
+                                print(f"Iniciando upload manual B2 para foto galeria: {b2_object_name}")
+                                if upload_to_b2(file_obj, b2_object_name):
+                                    Foto.objects.create(imovel=imovel, imagem=f"fotos_galeria/{unique_filename}")
+                                else:
+                                    messages.warning(request, f'Falha ao fazer upload da foto da galeria: {original_filename}')
 
-                # 2. Faz o upload manual da foto principal, se houver
-                upload_principal_success = True # Assume sucesso se não houver foto
-                if foto_principal_obj and isinstance(foto_principal_obj, InMemoryUploadedFile):
-                    original_filename = foto_principal_obj.name
-                    unique_filename = generate_unique_filename(original_filename)
-                    # Caminho completo no B2 (incluindo AWS_LOCATION)
-                    b2_object_name = f"{settings.AWS_LOCATION}/fotos_imoveis/{unique_filename}" 
-                    
-                    print(f"Iniciando upload manual para foto principal: {b2_object_name}")
-                    upload_principal_success = upload_to_b2(foto_principal_obj, b2_object_name)
-                    
                     if upload_principal_success:
-                        # 3. Atualiza o campo foto_principal no banco SÓ COM O CAMINHO
-                        imovel.foto_principal.name = f"fotos_imoveis/{unique_filename}" 
-                        print(f"Atualizando DB com caminho da foto principal: {imovel.foto_principal.name}")
-                        imovel.save(update_fields=['foto_principal']) # Salva apenas este campo
-                    else:
-                         messages.error(request, f'Falha ao fazer upload da foto principal: {original_filename}')
-                         # Decide se quer continuar ou parar se o upload principal falhar
-                         # return render(request, 'contas/anunciar_imovel.html', {'form': form})
+                        messages.success(request, 'Seu imóvel foi enviado para análise!')
+                        return redirect('meus_imoveis')
 
-                # 4. Faz o upload manual das fotos da galeria, se houver e principal deu certo
-                if upload_principal_success and fotos_galeria_list:
-                    print(f"Processando {len(fotos_galeria_list)} fotos da galeria manualmente...")
+                except Exception as e: 
+                    print(f"!!! ERRO CRÍTICO GERAL (anunciar_imovel - PRODUÇÃO) !!! | Erro: {e}")
+                    traceback.print_exc() 
+                    messages.error(request, f'Ocorreu um erro inesperado: {e}')
+            
+            else: 
+                # --- LÓGICA DE DESENVOLVIMENTO LOCAL (FileSystemStorage) ---
+                print("--- MODO DEBUG (FileSystemStorage) ---")
+                try:
+                    imovel = form.save(commit=False)
+                    imovel.proprietario = request.user
+                    # O form.save() AGORA vai lidar com o salvamento da foto localmente
+                    print("Executando form.save() para salvar localmente...")
+                    imovel.save() 
+                    print(f"Imóvel salvo localmente ID: {imovel.id}")
+                    if imovel.foto_principal:
+                         print(f"Caminho foto principal local: {imovel.foto_principal.path}")
+                         print(f"URL foto principal local: {imovel.foto_principal.url}")
+
+                    # Salvar fotos da galeria localmente (usando o FileSystemStorage padrão)
+                    fotos_galeria_list = request.FILES.getlist('fotos_galeria')
+                    print(f"Processando {len(fotos_galeria_list)} fotos da galeria localmente...")
                     for file_obj in fotos_galeria_list:
                          if isinstance(file_obj, InMemoryUploadedFile):
-                            original_filename = file_obj.name
-                            unique_filename = generate_unique_filename(original_filename)
-                            b2_object_name = f"{settings.AWS_LOCATION}/fotos_galeria/{unique_filename}"
-                            
-                            print(f"Iniciando upload manual para foto galeria: {b2_object_name}")
-                            upload_galeria_success = upload_to_b2(file_obj, b2_object_name)
-                            
-                            if upload_galeria_success:
-                                # Cria o objeto Foto no banco SÓ COM O CAMINHO
-                                Foto.objects.create(imovel=imovel, imagem=f"fotos_galeria/{unique_filename}")
-                                print(f"Salvo no DB foto galeria: fotos_galeria/{unique_filename}")
-                            else:
-                                messages.warning(request, f'Falha ao fazer upload da foto da galeria: {original_filename}')
-                                # Continua processando as outras fotos da galeria
-
-                if upload_principal_success: # Se o principal deu certo (mesmo que galeria falhe)
-                    messages.success(request, 'Seu imóvel foi enviado para análise!')
-                    print("Redirecionando para meus_imoveis...") 
+                            try:
+                                foto_obj = Foto(imovel=imovel, imagem=file_obj) 
+                                foto_obj.save() # FileSystemStorage cuida disso
+                                print(f"Salvo localmente foto galeria: {foto_obj.imagem.name}, URL: {foto_obj.imagem.url}")
+                            except Exception as e_galeria:
+                                print(f"!!! ERRO ao salvar foto da galeria localmente: {file_obj.name} !!! | Erro: {e_galeria}")
+                    
+                    messages.success(request, 'Seu imóvel foi salvo localmente!')
                     return redirect('meus_imoveis')
-                # Se chegou aqui, o upload principal falhou e não redirecionamos antes
 
-            except Exception as e: 
-                print(f"!!! ERRO CRÍTICO GERAL (anunciar_imovel) !!!")
-                print(f"Tipo do erro: {type(e)}")
-                print(f"Erro: {e}")
-                traceback.print_exc() 
-                messages.error(request, f'Ocorreu um erro inesperado: {e}')
-                
+                except Exception as e:
+                    print(f"!!! ERRO CRÍTICO GERAL (anunciar_imovel - LOCAL) !!! | Erro: {e}")
+                    traceback.print_exc()
+                    messages.error(request, f'Ocorreu um erro local inesperado: {e}')
+
         else: # Se form.is_valid() for False
             print("Formulário (Anunciar) NÃO é válido.")
             print(form.errors.as_text()) 
@@ -175,99 +247,111 @@ def anunciar_imovel(request):
     print("Renderizando template anunciar_imovel.html (Anunciar)...") 
     return render(request, 'contas/anunciar_imovel.html', {'form': form})
 
-# --- View "Editar Imóvel" (COM UPLOAD MANUAL BOTO3) ---
+
+# --- View "Editar Imóvel" (COM LÓGICA CONDICIONAL DEBUG/PRODUÇÃO) ---
 @login_required
 def editar_imovel(request, imovel_id):
     imovel = get_object_or_404(Imovel, id=imovel_id, proprietario=request.user)
-    print(f"--- Iniciando editar_imovel para ID: {imovel_id} ---")
+    print(f"--- Iniciando editar_imovel para ID: {imovel_id} --- | DEBUG={settings.DEBUG}")
     print(f"Método da Requisição: {request.method}")
 
     if request.method == 'POST':
         form = ImovelForm(request.POST, request.FILES, instance=imovel)
-        print("--- DEBUG FORM POST (Editar) ---")
         print(f"request.FILES: {request.FILES}") 
         
         if form.is_valid():
             print("Formulário (Editar) é VÁLIDO.")
-            foto_principal_obj = form.cleaned_data.get('foto_principal') # Pode ser None, False ou um arquivo
-            fotos_galeria_list = request.FILES.getlist('fotos_galeria')
 
-            try:
-                # 1. Salva os dados do Imovel SEM a foto principal
-                # Verifica se o campo foto_principal foi marcado para limpar (checkbox no form?)
-                # Se o form inclui um checkbox "limpar foto", form.cleaned_data['foto_principal'] será False
+            # --- LÓGICA CONDICIONAL ---
+            if not settings.DEBUG:
+                # --- LÓGICA DE PRODUÇÃO (Render com B2 Manual) ---
+                print("--- MODO PRODUÇÃO (B2 Manual - Editar) ---")
+                foto_principal_obj = form.cleaned_data.get('foto_principal') 
+                fotos_galeria_list = request.FILES.getlist('fotos_galeria')
                 limpar_foto_principal = foto_principal_obj is False 
 
-                imovel_atualizado = form.save(commit=False) # Não salva ainda
-
-                # Guarda o nome da foto antiga, caso precise deletar do B2 (futuro)
-                foto_antiga = imovel.foto_principal.name if imovel.foto_principal else None
-
-                # Se for limpar ou se uma nova foto foi enviada, limpa o campo antes do save principal
-                if limpar_foto_principal or (foto_principal_obj and isinstance(foto_principal_obj, InMemoryUploadedFile)):
-                     imovel_atualizado.foto_principal = None 
-
-                print("Salvando dados do imóvel (sem/com foto antiga)...")
-                imovel_atualizado.save()
-                print(f"Imóvel atualizado (passo 1) ID: {imovel_atualizado.id}")
-
-                # 2. Processa a foto principal (limpar ou fazer upload novo)
-                upload_principal_success = True # Assume sucesso por padrão
-
-                if limpar_foto_principal:
-                    print("Limpando foto principal (já feito no save anterior).")
-                    # Aqui você poderia adicionar a lógica para deletar 'foto_antiga' do B2
-                
-                elif foto_principal_obj and isinstance(foto_principal_obj, InMemoryUploadedFile):
-                    # Nova foto enviada, faz upload manual
-                    original_filename = foto_principal_obj.name
-                    unique_filename = generate_unique_filename(original_filename)
-                    b2_object_name = f"{settings.AWS_LOCATION}/fotos_imoveis/{unique_filename}"
+                try:
+                    imovel_atualizado = form.save(commit=False)
+                    foto_antiga = imovel.foto_principal.name if imovel.foto_principal else None
                     
-                    print(f"Iniciando upload manual para NOVA foto principal: {b2_object_name}")
-                    upload_principal_success = upload_to_b2(foto_principal_obj, b2_object_name)
+                    if limpar_foto_principal or (foto_principal_obj and isinstance(foto_principal_obj, InMemoryUploadedFile)):
+                         imovel_atualizado.foto_principal = None 
 
+                    imovel_atualizado.save() # Salva outros campos e talvez limpe a foto
+                    print(f"Imóvel atualizado (passo 1) ID: {imovel_atualizado.id}")
+
+                    upload_principal_success = True
+                    if limpar_foto_principal:
+                        print("Limpando foto principal B2 (lógica de delete futura aqui).")
+                        # TODO: Adicionar delete_from_b2(foto_antiga)
+                    
+                    elif foto_principal_obj and isinstance(foto_principal_obj, InMemoryUploadedFile):
+                        original_filename = foto_principal_obj.name
+                        unique_filename = generate_unique_filename(original_filename)
+                        b2_object_name = f"{settings.AWS_LOCATION}/fotos_imoveis/{unique_filename}"
+                        print(f"Iniciando upload manual B2 para NOVA foto principal: {b2_object_name}")
+                        upload_principal_success = upload_to_b2(foto_principal_obj, b2_object_name)
+                        if upload_principal_success:
+                            imovel_atualizado.foto_principal.name = f"fotos_imoveis/{unique_filename}"
+                            imovel_atualizado.save(update_fields=['foto_principal'])
+                            # TODO: Adicionar delete_from_b2(foto_antiga)
+                        else:
+                            messages.error(request, f'Falha ao fazer upload da NOVA foto principal: {original_filename}')
+                    
+                    if upload_principal_success and fotos_galeria_list:
+                        print(f"Processando {len(fotos_galeria_list)} NOVAS fotos da galeria B2...")
+                        for file_obj in fotos_galeria_list:
+                             if isinstance(file_obj, InMemoryUploadedFile):
+                                original_filename = file_obj.name
+                                unique_filename = generate_unique_filename(original_filename)
+                                b2_object_name = f"{settings.AWS_LOCATION}/fotos_galeria/{unique_filename}"
+                                print(f"Iniciando upload manual B2 para NOVA foto galeria: {b2_object_name}")
+                                if upload_to_b2(file_obj, b2_object_name):
+                                    Foto.objects.create(imovel=imovel_atualizado, imagem=f"fotos_galeria/{unique_filename}")
+                                else:
+                                    messages.warning(request, f'Falha ao fazer upload da NOVA foto da galeria: {original_filename}')
+                    
                     if upload_principal_success:
-                        # Atualiza o campo no banco SÓ COM O CAMINHO
-                        imovel_atualizado.foto_principal.name = f"fotos_imoveis/{unique_filename}"
-                        print(f"Atualizando DB com caminho da NOVA foto principal: {imovel_atualizado.foto_principal.name}")
-                        imovel_atualizado.save(update_fields=['foto_principal'])
-                        # Aqui você poderia adicionar a lógica para deletar 'foto_antiga' do B2
-                    else:
-                        messages.error(request, f'Falha ao fazer upload da NOVA foto principal: {original_filename}')
-                        # Decide se quer parar ou continuar
-                        # return render(request, 'contas/anunciar_imovel.html', {'form': form})
+                        messages.success(request, 'Imóvel atualizado com sucesso!')
+                        return redirect('meus_imoveis')
 
-                # 3. Processa fotos da galeria (APENAS NOVAS FOTOS)
-                if upload_principal_success and fotos_galeria_list:
-                    print(f"Processando {len(fotos_galeria_list)} NOVAS fotos da galeria manualmente...")
+                except Exception as e: 
+                    print(f"!!! ERRO CRÍTICO GERAL (editar_imovel - PRODUÇÃO) !!! | Erro: {e}")
+                    traceback.print_exc() 
+                    messages.error(request, f'Ocorreu um erro inesperado ao atualizar: {e}')
+
+            else:
+                # --- LÓGICA DE DESENVOLVIMENTO LOCAL (FileSystemStorage) ---
+                print("--- MODO DEBUG (FileSystemStorage - Editar) ---")
+                try:
+                    # Com FileSystemStorage, form.save() cuida de tudo
+                    print("Executando form.save() para atualizar localmente...")
+                    imovel_atualizado = form.save() 
+                    print(f"Imóvel atualizado localmente ID: {imovel_atualizado.id}")
+                    if imovel_atualizado.foto_principal:
+                         print(f"Caminho foto principal local: {imovel_atualizado.foto_principal.path}")
+                         print(f"URL foto principal local: {imovel_atualizado.foto_principal.url}")
+
+                    # Salvar NOVAS fotos da galeria localmente
+                    fotos_galeria_list = request.FILES.getlist('fotos_galeria')
+                    print(f"Processando {len(fotos_galeria_list)} NOVAS fotos da galeria localmente...")
                     for file_obj in fotos_galeria_list:
                          if isinstance(file_obj, InMemoryUploadedFile):
-                            original_filename = file_obj.name
-                            unique_filename = generate_unique_filename(original_filename)
-                            b2_object_name = f"{settings.AWS_LOCATION}/fotos_galeria/{unique_filename}"
-                            
-                            print(f"Iniciando upload manual para NOVA foto galeria: {b2_object_name}")
-                            upload_galeria_success = upload_to_b2(file_obj, b2_object_name)
-                            
-                            if upload_galeria_success:
-                                Foto.objects.create(imovel=imovel_atualizado, imagem=f"fotos_galeria/{unique_filename}")
-                                print(f"Salvo no DB NOVA foto galeria: fotos_galeria/{unique_filename}")
-                            else:
-                                messages.warning(request, f'Falha ao fazer upload da NOVA foto da galeria: {original_filename}')
-                
-                if upload_principal_success:
-                    messages.success(request, 'Imóvel atualizado com sucesso!')
-                    print("Redirecionando para meus_imoveis...") 
+                            try:
+                                foto_obj = Foto(imovel=imovel_atualizado, imagem=file_obj) 
+                                foto_obj.save() # FileSystemStorage cuida disso
+                                print(f"Salvo localmente NOVA foto galeria: {foto_obj.imagem.name}, URL: {foto_obj.imagem.url}")
+                            except Exception as e_galeria:
+                                print(f"!!! ERRO ao salvar NOVA foto da galeria localmente: {file_obj.name} !!! | Erro: {e_galeria}")
+
+                    messages.success(request, 'Imóvel atualizado localmente!')
                     return redirect('meus_imoveis')
 
-            except Exception as e: 
-                print(f"!!! ERRO CRÍTICO GERAL (editar_imovel) !!!")
-                print(f"Tipo do erro: {type(e)}")
-                print(f"Erro: {e}")
-                traceback.print_exc() 
-                messages.error(request, f'Ocorreu um erro inesperado ao atualizar: {e}')
-
+                except Exception as e:
+                    print(f"!!! ERRO CRÍTICO GERAL (editar_imovel - LOCAL) !!! | Erro: {e}")
+                    traceback.print_exc()
+                    messages.error(request, f'Ocorreu um erro local inesperado ao atualizar: {e}')
+        
         else: # Se form.is_valid() for False
             print("Formulário (Editar) NÃO é válido.")
             print(form.errors.as_text()) 
