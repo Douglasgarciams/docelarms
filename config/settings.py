@@ -123,9 +123,7 @@ EMAIL_HOST_USER = os.environ.get('GMAIL_USER')
 EMAIL_HOST_PASSWORD = os.environ.get('GMAIL_APP_PASSWORD')
 DEFAULT_FROM_EMAIL = EMAIL_HOST_USER
 
-# Em settings.py
-
-# --- BACKBLAZE B2 STORAGE CONFIG (SIMPLIFICADO) ---
+# --- BACKBLAZE B2 STORAGE CONFIG (SIMPLIFICADO E CORRIGIDO) ---
 DEFAULT_FILE_STORAGE = "storages.backends.s3boto3.S3Boto3Storage"
 
 AWS_ACCESS_KEY_ID = os.getenv("B2_ACCESS_KEY_ID")
@@ -140,23 +138,19 @@ AWS_S3_FILE_OVERWRITE = True # Mantivemos True do teste anterior
 # Pasta dentro do bucket
 AWS_LOCATION = 'media'
 
-# --- REMOVA OU COMENTE ESTA LINHA ---
-# AWS_S3_CUSTOM_DOMAIN = f"{os.getenv('B2_ENDPOINT')}/file/{AWS_STORAGE_BUCKET_NAME}"
+# --- A LINHA AWS_S3_CUSTOM_DOMAIN FOI REMOVIDA OU ESTÁ COMENTADA ---
+# AWS_S3_CUSTOM_DOMAIN = f"{os.getenv('B2_ENDPOINT')}/file/{AWS_STORAGE_BUCKET_NAME}" # <- REMOVIDA/COMENTADA
 
-# --- AJUSTE MEDIA_URL DE VOLTA ---
+# --- AJUSTE MEDIA_URL ---
+# Usar o formato de subdomínio é geralmente mais compatível
 MEDIA_URL = f'https://{AWS_STORAGE_BUCKET_NAME}.{os.getenv("B2_ENDPOINT")}/{AWS_LOCATION}/'
-# Alternativa (se B2 não usar subdomínio para bucket):
+# Se o B2 não usa subdomínio para seu endpoint específico, use a linha abaixo como alternativa:
 # MEDIA_URL = f"{AWS_S3_ENDPOINT_URL}/{AWS_STORAGE_BUCKET_NAME}/{AWS_LOCATION}/"
-# Nota: Verifique qual formato de URL o B2 usa para acesso público direto aos arquivos no seu endpoint.
-# A primeira opção (com subdomínio) é mais comum no estilo S3.
 
 # --- FIM DAS ALTERAÇÕES ---
 
-# Mantenha o LOGGING detalhado por enquanto, caso precise.
-# Mantenha os prints nas views também.
 
-
-# --- Bloco de depuração (pode remover ou manter) ---
+# --- Bloco de depuração (CORRIGIDO - REMOVIDO O PRINT PROBLEMÁTICO) ---
 print("--- INICIANDO DEBUG DE STORAGE B2 ---")
 print(f"B2_ENDPOINT (raw): {os.getenv('B2_ENDPOINT')}")
 print(f"B2_BUCKET_NAME (raw): {os.getenv('B2_BUCKET_NAME')}")
@@ -165,7 +159,7 @@ print(f"B2_SECRET_ACCESS_KEY (raw): {os.getenv('B2_SECRET_ACCESS_KEY')}")
 print("---")
 print(f"AWS_S3_ENDPOINT_URL (final): {AWS_S3_ENDPOINT_URL}")
 print(f"AWS_STORAGE_BUCKET_NAME (final): {AWS_STORAGE_BUCKET_NAME}")
-print(f"AWS_S3_CUSTOM_DOMAIN (final): {AWS_S3_CUSTOM_DOMAIN}")
+# print(f"AWS_S3_CUSTOM_DOMAIN (final): {AWS_S3_CUSTOM_DOMAIN}") # <- REMOVIDO/COMENTADO
 print(f"MEDIA_URL (final): {MEDIA_URL}")
 print("--- FIM DO DEBUG DE STORAGE B2 ---")
 
