@@ -25,7 +25,7 @@ def generate_unique_filename(filename):
 
 # Função upload_to_b2 (mantida, só será chamada em produção)
 def upload_to_b2(file_obj, object_name):
-    """Faz upload de um objeto de arquivo para B2 usando Boto3, aplicando marca d'água centralizada."""
+    """Faz upload de um objeto de arquivo para B2 usando Boto3, aplicando marca d'água centralizada e grande."""
     print(f"--- Iniciando upload_to_b2 para: {object_name} ---")
     
     # --- ETAPA 1: Aplicar Marca D'água ---
@@ -44,9 +44,30 @@ def upload_to_b2(file_obj, object_name):
         text_color = (0, 0, 0, 128) # RGBA -> Preto, A=128 é ~50% de 255
         
         # --- Seleção da Fonte ---
-        # Tamanho da fonte proporcional à largura, MAIOR que antes
-        # Ajuste o divisor /15 para mais (menor) ou menos (maior) se necessário
-        font_size = int(img_width / 15) 
+        # Aumentar drasticamente o tamanho da fonte para preencher a largura
+        # Ajuste o divisor /2.5 para mais (menor) ou menos (maior) para calibrar
+        # O objetivo é que o texto ocupe ~70-80% da largura da imagem, como no seu exemplo
+        target_font_width_ratio = 0.75 # Queremos que o texto ocupe 75% da largura da imagem
+        
+        # Começa com um tamanho de fonte grande e ajusta iterativamente
+        # (Um método mais robusto para encontrar o tamanho certo)
+        font_size = 1
+        test_font = ImageFont.truetype("arial.ttf", font_size) # Usar arial para teste
+        
+        # Loop para encontrar o tamanho de fonte ideal
+        while True:
+            # text_bbox = draw.textbbox((0, 0), text, font=test_font) # Este método é mais preciso no Pillow 10+
+            # text_width_test = text_bbox[2] - text_bbox[0]
+            # Usando textsize para compatibilidade maior
+            text_width_test, text_height_test = draw.textsize(text, font=test_font) 
+            
+            if text_width_test < img_width * target_font_width_ratio and font_size < 500: # Limite para não explodir
+                font_size += 1
+                test_font = ImageFont.truetype("arial.ttf", font_size)
+            else:
+                font_size -= 1 # Volta um passo para o tamanho máximo que cabe
+                break
+        
         if font_size < 20: font_size = 20 # Tamanho mínimo razoável
 
         font = None
@@ -64,26 +85,43 @@ def upload_to_b2(file_obj, object_name):
              print("Não foi possível carregar a fonte 'arial.ttf', usando fonte padrão do Pillow.")
              try:
                  font = ImageFont.load_default() 
-                 # load_default não aceita tamanho, pode ficar pequeno
+                 # load_default não aceita tamanho, pode ficar pequeno.
+                 # Se load_default for usada, o tamanho pode não ser o que esperamos.
+                 # É altamente recomendado fornecer um arquivo .ttf.
              except Exception as font_e:
                  print(f"Erro ao carregar fonte: {font_e}. Marca d'água pode falhar.")
 
         if font:
-            # Calcula o tamanho do texto para centralização precisa
-            text_bbox = draw.textbbox((0, 0), text, font=font)
-            text_width = text_bbox[2] - text_bbox[0]
-            text_height = text_bbox[3] - text_bbox[1]
+            # Calcula o tamanho final do texto com a fonte escolhida
+            # text_bbox = draw.textbbox((0, 0), text, font=font)
+            # text_width = text_bbox[2] - text_bbox[0]
+            # text_height = text_bbox[3] - text_bbox[1]
+            text_width, text_height = draw.textsize(text, font=font)
+
+            # Criar uma imagem temporária só com o texto para poder girar
+            # Adiciona um padding para a rotação não cortar as bordas do texto
+            text_padding = int(max(text_width, text_height) * 0.1) 
+            text_img = Image.new('RGBA', (text_width + 2*text_padding, text_height + 2*text_padding), (0,0,0,0))
+            text_draw = ImageDraw.Draw(text_img)
+            text_draw.text((text_padding, text_padding), text, font=font, fill=text_color)
             
-            # Calcula a posição central exata
-            x = (img_width - text_width) / 2
-            y = (img_height - text_height) / 2
+            # --- Rotação do Texto (opcional, mas comum para marcas d'água) ---
+            angle = 20 # Ângulo de rotação em graus (ajuste se quiser)
+            rotated_text_img = text_img.rotate(angle, expand=1, resample=Image.BICUBIC)
             
-            # Desenha o texto UMA VEZ na camada transparente
-            print(f"Desenhando marca d'água centralizada em ({x},{y})")
-            draw.text((x, y), text, font=font, fill=text_color)
+            # Calcula a nova largura e altura do texto rotacionado
+            rotated_width, rotated_height = rotated_text_img.size
+
+            # Calcula a posição central exata para o texto rotacionado
+            x = (img_width - rotated_width) / 2
+            y = (img_height - rotated_height) / 2
+            
+            # Cola o texto rotacionado na camada transparente principal
+            print(f"Colando marca d'água centralizada e rotacionada em ({x},{y})")
+            watermark_layer.paste(rotated_text_img, (int(x), int(y)), rotated_text_img)
             
             # Combina a camada de texto com a imagem original
-            img = Image.alpha_composite(img, txt_layer)
+            img = Image.alpha_composite(img, watermark_layer)
         
         # --- ETAPA 2: Salvar Imagem Modificada em Memória ---
         # (Esta parte continua igual)
