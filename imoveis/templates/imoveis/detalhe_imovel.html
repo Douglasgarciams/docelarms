@@ -19,7 +19,7 @@
             {% if imovel.fotos.all %}
                 <hr>
                 <h3 class="fw-bold mt-4">Galeria de Fotos</h3>
-                <div class="row row-cols-1 row-cols-sm-2 row-cols-md-3 g-3 mb-4">
+                <div class="row row-cols-3 row-cols-lg-5 g-4">
                     {% for foto in imovel.fotos.all %}
                         <div class="col">
                             <a href="{{ foto.imagem.url }}" data-lightbox="galeria-imovel" data-title="{{ imovel.titulo }}">

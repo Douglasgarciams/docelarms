@@ -77,7 +77,7 @@ def lista_imoveis(request):
     # --- Fim dos Filtros ---
 
     # Lógica de paginação (sem alterações)
-    paginator = Paginator(imoveis_list, 15) 
+    paginator = Paginator(imoveis_list, 50) 
     page_number = request.GET.get('page')
     imoveis_page = paginator.get_page(page_number)
     
