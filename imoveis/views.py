@@ -126,3 +126,17 @@ def get_bairros(request):
     cidade_id = request.GET.get('cidade_id')
     bairros = Bairro.objects.filter(cidade_id=cidade_id).order_by('nome')
     return JsonResponse(list(bairros.values('id', 'nome')), safe=False)
+
+    # --- [FUNÇÃO ADICIONADA] ---
+def politica_de_uso(request):
+    # Como o 'base.html' está em 'imoveis/templates/', 
+    # o Django encontrará o 'politica_de_uso.html' no mesmo local.
+    return render(request, 'politica_de_uso.html')
+
+    # --- [FUNÇÃO ADICIONADA] ---
+def politica_de_qualidade(request):
+    return render(request, 'politica_de_qualidade.html')
+
+    # --- [FUNÇÃO ADICIONADA] ---
+def dicas_de_seguranca(request):
+    return render(request, 'dicas_de_seguranca.html')

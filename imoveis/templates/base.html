@@ -200,7 +200,17 @@
     <footer class="bg-dark text-white text-center py-4 mt-5">
         <div class="container">
             <p class="mb-0">&copy; 2025 docelarms.com.br. Todos os direitos reservados.</p>
-        </div>
+            
+            <p class="mb-0 mt-2">
+                <a href="{% url 'politica_de_uso' %}" class="text-white-50" style="text-decoration: none;">Política de Uso e Privacidade</a>
+
+                <span class="text-white-50 mx-2">|</span>
+                <a href="{% url 'politica_de_qualidade' %}" class="text-white-50" style="text-decoration: none;">Política de Qualidade</a>
+
+                <span class="text-white-50 mx-2">|</span>
+                <a href="{% url 'dicas_de_seguranca' %}" class="text-white-50" style="text-decoration: none;">Dicas de Segurança</a>
+            </p>
+            </div>
     </footer>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
