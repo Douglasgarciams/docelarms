@@ -1,8 +1,13 @@
 # imoveis/models.py
-from django.db import models
-from django.contrib.auth.models import User
-# Importações da marca d'água REMOVIDAS
 
+from django.db import models
+# from django.contrib.auth.models import User  <- Removido
+from django.conf import settings # <- Importado
+from django.utils import timezone # <- Importado
+
+# -----------------------------------------------------------------
+# MODELOS 'Cidade', 'Bairro', 'Imobiliaria' (Sem mudanças)
+# -----------------------------------------------------------------
 class Cidade(models.Model):
     nome = models.CharField(max_length=100)
     estado = models.CharField(max_length=2, help_text="Sigla do estado, ex: MS")
@@ -26,21 +31,103 @@ class Imobiliaria(models.Model):
     def __str__(self): return self.nome
     class Meta: ordering = ['nome']; verbose_name_plural = "Imobiliárias"
 
+# -----------------------------------------------------------------
+# MODELO: PLANO (Atualizado)
+# Adicionado 'limite_anuncios' e 'is_ativo'
+# -----------------------------------------------------------------
+class Plano(models.Model):
+    nome = models.CharField(max_length=100, verbose_name="Nome do Plano")
+    descricao = models.TextField(
+        verbose_name="Descrição", 
+        help_text="O que este plano oferece? (Ex: Destaque na home, mais fotos, etc.)",
+        blank=True,
+        null=True
+    )
+    preco = models.DecimalField(max_digits=10, decimal_places=2, verbose_name="Preço (R$)")
+    duracao_dias = models.IntegerField(help_text="Duração do anúncio em dias (ex: 30, 180, 365)")
+    limite_fotos = models.IntegerField(
+        default=5,
+        verbose_name="Limite de Fotos",
+        help_text="Número máximo de fotos permitidas por anúncio (ex: 5, 15, 32)"
+    )
+    limite_anuncios = models.IntegerField(
+        default=1,
+        verbose_name="Limite de Anúncios",
+        help_text="Número máximo de anúncios ATIVOS que o usuário pode ter com este plano (ex: 1, 5)"
+    )
+    
+    # --- [CAMPO ADICIONADO (Para Ativar/Desativar)] ---
+    is_ativo = models.BooleanField(
+        default=True,
+        verbose_name="Plano Ativo?",
+        help_text="Se marcado, o plano aparecerá na página 'Planos e Preços' para contratação."
+    )
+    # ---------------------------
+
+    def __str__(self):
+        return f"{self.nome} (R$ {self.preco} / {self.duracao_dias} dias)"
+    
+    class Meta:
+        verbose_name = "Plano"
+        verbose_name_plural = "Planos"
+
+# -----------------------------------------------------------------
+# MODELO: ASSINATURA (Atualizado)
+# Adicionado 'null=True' ao usuário para facilitar migrações
+# -----------------------------------------------------------------
+class Assinatura(models.Model):
+    class StatusAssinatura(models.TextChoices):
+        PENDENTE = 'PENDENTE', 'Pendente de Pagamento'
+        ATIVA = 'ATIVA', 'Ativa'
+        EXPIRADA = 'EXPIRADA', 'Expirada'
+        CANCELADA = 'CANCELADA', 'Cancelada'
+
+    usuario = models.OneToOneField(
+        settings.AUTH_USER_MODEL, 
+        on_delete=models.CASCADE, 
+        related_name="assinatura",
+        null=True # Permite usuários existentes sem assinatura
+    )
+    plano = models.ForeignKey(Plano, on_delete=models.SET_NULL, null=True, verbose_name="Plano")
+    status = models.CharField(
+        max_length=20, 
+        choices=StatusAssinatura.choices, 
+        default=StatusAssinatura.PENDENTE
+    )
+    data_inicio = models.DateTimeField(verbose_name="Data de Início", null=True, blank=True)
+    data_expiracao = models.DateTimeField(verbose_name="Data de Expiração", null=True, blank=True)
+    
+    def __str__(self):
+        return f"{self.usuario.username if self.usuario else 'Sem Usuário'} - Plano {self.plano.nome if self.plano else 'N/A'}"
+
+    class Meta:
+        verbose_name = "Assinatura de Usuário"
+        verbose_name_plural = "Assinaturas de Usuários"
+
+# -----------------------------------------------------------------
+# MODELO 'Imovel' (Atualizado)
+# -----------------------------------------------------------------
 class Imovel(models.Model):
+    
     class Finalidade(models.TextChoices):
         VENDA = 'VENDA', 'Venda'
         ALUGUEL = 'ALUGUEL', 'Aluguel'
-
-    # --- TODOS OS CAMPOS AGORA SÃO OPCIONAIS (null=True, blank=True) ---
     
+    class StatusPublicacao(models.TextChoices):
+        PENDENTE_APROVACAO = 'PEND_APROV', 'Pendente de Aprovação'
+        ATIVO = 'ATIVO', 'Ativo'
+        EXPIRADO = 'EXPIRADO', 'Expirado'
+        REJEITADO = 'REJEITADO', 'Rejeitado'
+        PAUSADO = 'PAUSADO', 'Pausado'
+
     finalidade = models.CharField(
         max_length=10, choices=Finalidade.choices, default=Finalidade.VENDA,
         verbose_name="Finalidade (Venda/Aluguel)", null=True, blank=True
     )
     destaque = models.BooleanField(default=False, verbose_name="Destaque?")
-    aprovado = models.BooleanField(default=False, verbose_name="Aprovado?")
     
-    proprietario = models.ForeignKey(User, on_delete=models.CASCADE) # Este é o único obrigatório (definido na view)
+    proprietario = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='imoveis')
+    
     cidade = models.ForeignKey(Cidade, on_delete=models.SET_NULL, null=True, blank=True, verbose_name="Cidade")
     bairro = models.ForeignKey(Bairro, on_delete=models.SET_NULL, null=True, blank=True, verbose_name="Bairro")
     imobiliaria = models.ForeignKey(Imobiliaria, on_delete=models.SET_NULL, null=True, blank=True, verbose_name="Imobiliária/Anunciante")
@@ -61,15 +148,24 @@ class Imovel(models.Model):
     foto_principal = models.ImageField(upload_to='fotos_imoveis/', null=True, blank=True, verbose_name="Foto Principal")
     data_cadastro = models.DateTimeField(auto_now_add=True)
 
+    status_publicacao = models.CharField(
+        max_length=20,
+        choices=StatusPublicacao.choices,
+        default=StatusPublicacao.PENDENTE_APROVACAO,
+        verbose_name="Status da Publicação"
+    )
+    data_aprovacao = models.DateTimeField(null=True, blank=True, verbose_name="Data de Aprovação")
+    data_expiracao = models.DateTimeField(null=True, blank=True, verbose_name="Data de Expiração")
+
     def __str__(self):
         if self.titulo:
             return self.titulo
-        return f"Imóvel ID {self.id}" # Fallback se o título estiver vazio
+        return f"Imóvel ID {self.id}"
     
-    # MÉTODO SAVE CUSTOMIZADO REMOVIDO
-
+# -----------------------------------------------------------------
+# MODELO 'Foto' (Sem mudanças)
+# -----------------------------------------------------------------
 class Foto(models.Model):
     imovel = models.ForeignKey(Imovel, related_name='fotos', on_delete=models.CASCADE)
     imagem = models.ImageField(upload_to='fotos_galeria/')
     def __str__(self): return f"Foto de {self.imovel.titulo or self.imovel.id}"
-    # MÉTODO SAVE CUSTOMIZADO REMOVIDO

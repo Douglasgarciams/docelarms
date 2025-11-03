@@ -23,12 +23,14 @@ class ImovelForm(forms.ModelForm):
     class Meta:
         model = Imovel
         fields = [
+            # 'plano', # <--- [LINHA REMOVIDA] ---
             'finalidade', 'imobiliaria', 'cidade', 'bairro', 'titulo', 'descricao', 
             'endereco', 'preco', 'telefone_contato', 'quartos', 'suites', 'banheiros', 'salas', 
             'cozinhas', 'closets', 'area', 'foto_principal'
         ]
         
         widgets = {
+            # 'plano': forms.Select(attrs={'class': 'form-select'}), # <--- [LINHA REMOVIDA] ---
             'finalidade': forms.Select(attrs={'class': 'form-select'}),
             'imobiliaria': forms.Select(attrs={'class': 'form-select'}),
             'cidade': forms.Select(attrs={'class': 'form-select'}),

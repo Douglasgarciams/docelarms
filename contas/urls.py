@@ -15,6 +15,10 @@ urlpatterns = [
     path('excluir-imovel/<int:imovel_id>/', views.excluir_imovel, name='excluir_imovel'),
     path('excluir-foto/<int:foto_id>/', views.excluir_foto, name='excluir_foto'),
 
+    # --- ROTA DE PAGAMENTO ADICIONADA ---
+    path('planos/', views.listar_planos, name='listar_planos'),
+    path('pagar/<int:plano_id>/', views.criar_pagamento, name='criar_pagamento'),
+    
     # URLs de recuperação de senha do Django
     # Elas procurarão os templates dentro de 'registration/' por padrão
     path('', include('django.contrib.auth.urls')), 

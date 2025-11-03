@@ -1,0 +1,45 @@
+{% extends 'base.html' %} {% block content %}
+<div class="container mt-5">
+    <div class="row justify-content-center">
+        <div class="col-lg-10">
+            
+            <h2 class="text-center mb-4">Nossos Planos de Destaque</h2>
+            <p class="text-center text-muted mb-4">
+                Escolha o plano ideal para dar mais visibilidade ao seu imóvel.
+            </p>
+
+            <div class="row">
+                
+                {% for plano in planos %}
+                <div class="col-md-4 mb-4">
+                    <div class="card h-100 shadow-sm">
+                        <div class="card-body d-flex flex-column">
+                            <h5 class="card-title text-center">{{ plano.nome }}</h5>
+                            
+                            <div class="text-center my-3">
+                                <span class="display-4 font-weight-bold">R$ {{ plano.preco|floatformat:2 }}</span>
+                                </div>
+                            
+                            <p class="card-text text-muted">
+                                {{ plano.descricao|default:"Descrição dos benefícios do plano." }}
+                            </p>
+
+                            <div class="mt-auto">
+                                <a href="{% url 'criar_pagamento' plano.id %}" class="btn btn-primary btn-block btn-lg">
+                                    Contratar
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                {% empty %}
+                <div class="col">
+                    <p class="text-center">Nenhum plano disponível no momento. Por favor, volte mais tarde.</p>
+                </div>
+                {% endfor %}
+                
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

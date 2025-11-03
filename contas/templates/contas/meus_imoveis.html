@@ -37,11 +37,22 @@
                             <td>{{ imovel.titulo }}</td>
                             <td>R$ {{ imovel.preco|floatformat:2 }}</td>
                             <td>{{ imovel.cidade.nome }}</td>
+                            
                             <td>
-                                {% if imovel.aprovado %}
-                                    <span class="badge bg-success">Publicado</span>
+                                {% if imovel.status_publicacao == 'ATIVO' %}
+                                    <span class="badge bg-success">{{ imovel.get_status_publicacao_display }}</span>
+                                
+                                {% elif imovel.status_publicacao == 'PEND_PAG' or imovel.status_publicacao == 'PEND_APROV' %}
+                                    <span class="badge bg-warning text-dark">{{ imovel.get_status_publicacao_display }}</span>
+                                
+                                {% elif imovel.status_publicacao == 'REJEITADO' %}
+                                    <span class="badge bg-danger">{{ imovel.get_status_publicacao_display }}</span>
+                                
+                                {% elif imovel.status_publicacao == 'EXPIRADO' %}
+                                    <span class="badge bg-info text-dark">{{ imovel.get_status_publicacao_display }}</span>
+                                
                                 {% else %}
-                                    <span class="badge bg-warning text-dark">Em Análise</span>
+                                    <span class="badge bg-secondary">{{ imovel.get_status_publicacao_display }}</span>
                                 {% endif %}
                             </td>
                             <td>

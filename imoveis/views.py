@@ -5,7 +5,7 @@ from django.core.paginator import Paginator
 from django.http import JsonResponse
 
 def lista_imoveis(request):
-    imoveis_list = Imovel.objects.filter(aprovado=True).order_by('-destaque', '-data_cadastro')
+    imoveis_list = Imovel.objects.filter(status_publicacao='ATIVO').order_by('-destaque', '-data_cadastro')
     
     cidades = Cidade.objects.all()
     imobiliarias = Imobiliaria.objects.all()
@@ -91,7 +91,7 @@ def lista_imoveis(request):
     return render(request, 'imoveis/lista_imoveis.html', contexto)
 
 def detalhe_imovel(request, id):
-    imovel = get_object_or_404(Imovel, id=id, aprovado=True)
+    imovel = get_object_or_404(Imovel, id=id, status_publicacao='ATIVO')
     contexto = { 'imovel': imovel }
     return render(request, 'imoveis/detalhe_imovel.html', contexto)
 

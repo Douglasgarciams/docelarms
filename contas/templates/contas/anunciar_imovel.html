@@ -14,7 +14,7 @@
                         {% if form.instance.pk %}Editar Anúncio{% else %}Anunciar Novo Imóvel{% endif %}
                     </h2>
 
-                    <form method="POST" enctype="multipart/form-data" novalidate>
+                    <form method="POST" enctype="multipart/form-data">
                         {% csrf_token %}
 
                         {% if form.non_field_errors %}
@@ -24,6 +24,21 @@
                         {% endif %}
 
                         <div class="row g-3">
+                            
+                            <div class="col-md-4">
+                                <label class="form-label">Seu Plano</label>
+                                {% if assinatura and assinatura.status == 'ATIVA' %}
+                                    <input type="text" class="form-control" 
+                                           value="{{ assinatura.plano.nome }} (Ativo)" 
+                                           readonly 
+                                           style="background-color: #e9ecef; font-weight: bold; color: green;">
+                                {% else %}
+                                    <input type="text" class="form-control" 
+                                           value="Nenhum plano ativo" 
+                                           readonly 
+                                           style="background-color: #e9ecef; font-weight: bold; color: red;">
+                                {% endif %}
+                            </div>
                             <div class="col-md-4">
                                 <label class="form-label">{{ form.finalidade.label }}</label>
                                 {{ form.finalidade }}
@@ -32,6 +47,7 @@
                                 <label class="form-label">{{ form.imobiliaria.label }}</label>
                                 {{ form.imobiliaria }}
                             </div>
+
                             <div class="col-md-4">
                                 <label class="form-label">{{ form.cidade.label }}</label>
                                 {{ form.cidade }}

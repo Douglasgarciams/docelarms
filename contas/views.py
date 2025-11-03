@@ -3,7 +3,7 @@ from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from .forms import CustomUserCreationForm, UserUpdateForm, CustomPasswordChangeForm
-from imoveis.models import Imovel, Foto
+from imoveis.models import Imovel, Foto, Plano, Assinatura 
 from imoveis.forms import ImovelForm
 from django.contrib.auth import update_session_auth_hash
 import traceback 
@@ -13,10 +13,16 @@ from django.conf import settings
 from django.core.files.uploadedfile import InMemoryUploadedFile
 import uuid
 from pathlib import Path
+import mercadopago
 
 # Importar Pillow para manipulação de imagens
 from PIL import Image, ImageDraw, ImageFont
 from io import BytesIO
+
+# --- [IMPORTAÇÕES ADICIONADAS] ---
+from django.utils import timezone
+from datetime import timedelta
+# ---------------------------------
 
 # Função auxiliar para gerar nome de arquivo único
 def generate_unique_filename(filename):
@@ -43,45 +49,32 @@ def add_watermark(image_file, watermark_text="USO EXCLUSIVO DE DOCELARMS", font_
 
         # Tenta carregar uma fonte negrito ou usa a padrão
         try:
-            # Você pode precisar ajustar o caminho da fonte.
-            # No Linux, 'arial.ttf' ou 'DejaVuSans-Bold.ttf' podem funcionar.
-            # No Windows, pode ser 'arialbd.ttf' (Arial Bold).
-            # Para máxima compatibilidade, você pode incluir um arquivo .ttf no seu projeto.
             if font_path and os.path.exists(font_path):
                 font = ImageFont.truetype(font_path, int(height / 20)) # Tamanho da fonte proporcional
             else:
-                # Tenta fontes comuns de negrito ou fallback para padrão
                 try:
                     font = ImageFont.truetype("arialbd.ttf", int(height / 20)) # Windows
                 except IOError:
                     try:
                         font = ImageFont.truetype("DejaVuSans-Bold.ttf", int(height / 20)) # Linux/macOS
                     except IOError:
-                        font = ImageFont.load_default() # Fallback para fonte padrão se negrito não for encontrado
+                        font = ImageFont.load_default()
                         print("Aviso: Nenhuma fonte negrito específica encontrada, usando fonte padrão.")
 
         except Exception as e:
             print(f"Erro ao carregar fonte, usando padrão: {e}")
             font = ImageFont.load_default()
         
-        # O tamanho do texto para centralizar
-        # getbbox é mais moderno que getsize
         text_bbox = draw.textbbox((0, 0), watermark_text, font=font)
         text_width = text_bbox[2] - text_bbox[0]
         text_height = text_bbox[3] - text_bbox[1]
 
-        # Calcula a posição central
         x = (width - text_width) / 2
         y = (height - text_height) / 2
 
-        # Adiciona o texto em preto
         draw.text((x, y), watermark_text, font=font, fill=(0, 0, 0, 255)) # Preto com opacidade total
 
-        # Salva a imagem modificada em um buffer de bytes
         buffer = BytesIO()
-        # Salva no formato original ou como JPEG/PNG se for mais simples
-        # Se a imagem original era RGBA (PNG), salva como PNG. Se RGB (JPG), salva como JPG.
-        # Caso contrário, converte para RGB e salva como JPEG para evitar problemas
         if img.mode == "RGBA":
             img.save(buffer, format="PNG")
         else:
@@ -93,8 +86,8 @@ def add_watermark(image_file, watermark_text="USO EXCLUSIVO DE DOCELARMS", font_
     except Exception as e:
         print(f"!!! ERRO ao adicionar marca d'água: {e} !!!")
         traceback.print_exc()
-        image_file.seek(0) # Retorna o ponteiro do arquivo original
-        return image_file # Retorna o arquivo original em caso de erro
+        image_file.seek(0)
+        return image_file
 
 # Função auxiliar para fazer o upload manual via Boto3
 def upload_to_b2(file_obj, object_name):
@@ -112,48 +105,39 @@ def upload_to_b2(file_obj, object_name):
 
         bucket_name = os.getenv("B2_BUCKET_NAME")
         
-        # Voltar ao início do arquivo para leitura
         file_obj.seek(0) 
 
-        # --- APLICAR MARCA D'ÁGUA ANTES DO UPLOAD ---
-        # Certifique-se de que o file_obj é um objeto de arquivo que pode ser lido pela Pillow.
-        # InMemoryUploadedFile já funciona bem aqui.
         watermarked_file_buffer = add_watermark(file_obj)
-        # Atualiza o content_type caso o formato tenha mudado (ex: PNG para JPEG)
-        if watermarked_file_buffer != file_obj: # Se a marca d'água foi aplicada com sucesso
-            # Tenta inferir o content_type do buffer, ou mantém o original se Pillow não mudar o formato
-            # Pillow tenta manter o formato, mas se for RGBA e salvar como JPG, será imagem/jpeg
+        if watermarked_file_buffer != file_obj:
             try:
-                # Abre para reavaliar o tipo, se necessário
                 temp_img = Image.open(watermarked_file_buffer)
                 if temp_img.format == 'PNG':
                     content_type = 'image/png'
                 elif temp_img.format == 'JPEG':
                     content_type = 'image/jpeg'
                 else:
-                    content_type = file_obj.content_type # Fallback
-                watermarked_file_buffer.seek(0) # Volta para o início para o upload
+                    content_type = file_obj.content_type
+                watermarked_file_buffer.seek(0)
             except Exception:
-                content_type = file_obj.content_type # Fallback em caso de erro ao reabrir
+                content_type = file_obj.content_type
         else:
             content_type = file_obj.content_type
-        # -----------------------------------------------
         
         print(f"Executando put_object: Bucket={bucket_name}, Key={object_name}, ContentType={content_type}")
         s3_client.put_object(
             Bucket=bucket_name,
             Key=object_name,
-            Body=watermarked_file_buffer, # Usar o arquivo com marca d'água
-            ContentType=content_type # Usa o content type atualizado
+            Body=watermarked_file_buffer,
+            ContentType=content_type
         )
         print(f"SUCESSO: Upload Boto3 concluído para {object_name}")
-        return True # Indica sucesso
+        return True
     except Exception as e:
         print(f"!!! ERRO no upload_to_b2 para {object_name} !!!")
         print(f"Tipo do erro: {type(e)}")
         print(f"Erro: {e}")
         traceback.print_exc()
-        return False # Indica falha
+        return False
         
 # --- View de Cadastro (Original - Sem mudanças) ---
 def cadastro(request):
@@ -181,11 +165,21 @@ def meus_imoveis(request):
     }
     return render(request, 'contas/meus_imoveis.html', contexto)
 
-# --- View "Anunciar Imóvel" (Usa a lógica condicional DEBUG/PRODUÇÃO) ---
+# --- View "Anunciar Imóvel" (TOTALMENTE ATUALIZADA) ---
 @login_required
 def anunciar_imovel(request):
     print(f"--- Iniciando anunciar_imovel ---")
     print(f"Método da Requisição: {request.method}")
+
+    # --- [LÓGICA DE ASSINATURA ATUALIZADA] ---
+    assinatura_ativa = None
+    try:
+        assinatura_usuario = request.user.assinatura
+        if assinatura_usuario.status == 'ATIVA' and assinatura_usuario.plano and assinatura_usuario.plano.is_ativo:
+            assinatura_ativa = assinatura_usuario
+    except Assinatura.DoesNotExist:
+        pass
+    # --- [FIM DA LÓGICA DE ASSINATURA] ---
 
     if request.method == 'POST':
         form = ImovelForm(request.POST, request.FILES)
@@ -194,40 +188,70 @@ def anunciar_imovel(request):
 
         if form.is_valid():
             print("Formulário (Anunciar) é VÁLIDO.")
-            foto_principal_obj = form.cleaned_data.get('foto_principal')
-            fotos_galeria_list = request.FILES.getlist('fotos_galeria') # Pegar direto do request.FILES
 
+            # --- [LÓGICA DE VERIFICAÇÃO ATUALIZADA] ---
+            
+            # 1. (Assinatura já buscada lá em cima)
+            # 2. Verificação de Limite de Anúncios
+            if not assinatura_ativa:
+                messages.error(request, "Você não possui um plano ativo. Por favor, contrate um plano para poder anunciar.")
+                return redirect('listar_planos') 
+
+            # 3. Contar anúncios ativos (e pendentes) do usuário
+            anuncios_existentes_count = Imovel.objects.filter(
+                proprietario=request.user, 
+                status_publicacao__in=['ATIVO', 'PEND_APROV']
+            ).count()
+            
+            limite_anuncios = assinatura_ativa.plano.limite_anuncios
+            
+            print(f"Plano: {assinatura_ativa.plano.nome}, Limite Anúncios: {limite_anuncios}, Anúncios Existentes: {anuncios_existentes_count}")
+
+            # 4. APLICAR REGRA DE ANÚNCIO!
+            if anuncios_existentes_count >= limite_anuncios:
+                messages.error(request, f"Erro: Seu plano ({assinatura_ativa.plano.nome}) permite no máximo {limite_anuncios} anúncio(s) ativo(s) ou em análise. Você já atingiu seu limite.")
+                return redirect('meus_imoveis') 
+
+            # 5. Verificação de Limite de Fotos (do plano da ASSINATURA)
+            limite_de_fotos = assinatura_ativa.plano.limite_fotos
+            fotos_galeria_list = request.FILES.getlist('fotos_galeria')
+            quantidade_enviada = len(fotos_galeria_list)
+            
+            print(f"Limite Fotos: {limite_de_fotos}, Enviadas: {quantidade_enviada}")
+
+            if quantidade_enviada > limite_de_fotos:
+                messages.error(request, f"Erro: Seu plano ({assinatura_ativa.plano.nome}) permite no máximo {limite_de_fotos} fotos na galeria, mas você tentou enviar {quantidade_enviada}.")
+                contexto = {'form': form, 'assinatura': assinatura_ativa}
+                return render(request, 'contas/anunciar_imovel.html', contexto)
+            
+            # --- [FIM DA LÓGICA ATUALIZADA] ---
+
+            foto_principal_obj = form.cleaned_data.get('foto_principal')
+            
             try:
-                # 1. Salva os dados do Imovel SEM a foto principal primeiro
                 imovel = form.save(commit=False)
                 imovel.proprietario = request.user
-                imovel.foto_principal = None # Limpa o campo de foto temporariamente
-                print("Salvando dados do imóvel (sem foto ainda)...")
+                imovel.foto_principal = None 
+                print("Salvando dados do imóvel...")
                 imovel.save() 
                 print(f"Imóvel salvo (sem foto) ID: {imovel.id}")
 
-                # 2. Faz o upload manual da foto principal, se houver
-                upload_principal_success = True # Assume sucesso se não houver foto
+                upload_principal_success = True
                 if foto_principal_obj and isinstance(foto_principal_obj, InMemoryUploadedFile):
                     original_filename = foto_principal_obj.name
                     unique_filename = generate_unique_filename(original_filename)
-                    # Caminho completo no B2 (incluindo AWS_LOCATION)
                     b2_object_name = f"{settings.AWS_LOCATION}/fotos_imoveis/{unique_filename}" 
                     
                     print(f"Iniciando upload manual para foto principal: {b2_object_name}")
                     upload_principal_success = upload_to_b2(foto_principal_obj, b2_object_name)
                     
                     if upload_principal_success:
-                        # 3. Atualiza o campo foto_principal no banco SÓ COM O CAMINHO
                         imovel.foto_principal.name = f"fotos_imoveis/{unique_filename}" 
                         print(f"Atualizando DB com caminho da foto principal: {imovel.foto_principal.name}")
-                        imovel.save(update_fields=['foto_principal']) # Salva apenas este campo
+                        imovel.save(update_fields=['foto_principal'])
                     else:
                         messages.error(request, f'Falha ao fazer upload da foto principal: {original_filename}')
-                        # Decide se quer continuar ou parar se o upload principal falhar
-                        # return render(request, 'contas/anunciar_imovel.html', {'form': form})
 
-                # 4. Faz o upload manual das fotos da galeria, se houver e principal deu certo
                 if upload_principal_success and fotos_galeria_list:
                     print(f"Processando {len(fotos_galeria_list)} fotos da galeria manualmente...")
                     for file_obj in fotos_galeria_list:
@@ -240,18 +264,15 @@ def anunciar_imovel(request):
                             upload_galeria_success = upload_to_b2(file_obj, b2_object_name)
                             
                             if upload_galeria_success:
-                                # Cria o objeto Foto no banco SÓ COM O CAMINHO
                                 Foto.objects.create(imovel=imovel, imagem=f"fotos_galeria/{unique_filename}")
                                 print(f"Salvo no DB foto galeria: fotos_galeria/{unique_filename}")
                             else:
                                 messages.warning(request, f'Falha ao fazer upload da foto da galeria: {original_filename}')
-                                # Continua processando as outras fotos da galeria
 
-                if upload_principal_success: # Se o principal deu certo (mesmo que galeria falhe)
+                if upload_principal_success:
                     messages.success(request, 'Seu imóvel foi enviado para análise!')
                     print("Redirecionando para meus_imoveis...") 
                     return redirect('meus_imoveis')
-                # Se chegou aqui, o upload principal falhou e não redirecionamos antes
 
             except Exception as e: 
                 print(f"!!! ERRO CRÍTICO GERAL (anunciar_imovel) !!!")
@@ -264,43 +285,72 @@ def anunciar_imovel(request):
             print("Formulário (Anunciar) NÃO é válido.")
             print(form.errors.as_text()) 
             messages.error(request, 'Por favor, corrija os erros no formulário.')
+            
+            contexto = {'form': form, 'assinatura': assinatura_ativa}
+            return render(request, 'contas/anunciar_imovel.html', contexto)
 
     else: # Se for GET
         form = ImovelForm()
         print("Renderizando formulário (Anunciar) para GET.") 
     
-    print("Renderizando template anunciar_imovel.html (Anunciar)...") 
-    return render(request, 'contas/anunciar_imovel.html', {'form': form})
+    contexto = {
+        'form': form,
+        'assinatura': assinatura_ativa
+    }
+    print(f"Renderizando template com assinatura: {assinatura_ativa}")
+    return render(request, 'contas/anunciar_imovel.html', contexto)
 
-# --- View "Editar Imóvel" (COM UPLOAD MANUAL BOTO3) ---
+# --- View "Editar Imóvel" (ATUALIZADA) ---
 @login_required
 def editar_imovel(request, imovel_id):
     imovel = get_object_or_404(Imovel, id=imovel_id, proprietario=request.user)
     print(f"--- Iniciando editar_imovel para ID: {imovel_id} ---")
     print(f"Método da Requisição: {request.method}")
 
+    assinatura_ativa = None
+    try:
+        assinatura_usuario = request.user.assinatura
+        if assinatura_usuario.status == 'ATIVA':
+            assinatura_ativa = assinatura_usuario
+    except Assinatura.DoesNotExist:
+        pass
+
     if request.method == 'POST':
-        form = ImovelForm(request.POST, request.FILES, instance=imovel)
+        form = ImovelForm(request.POST, request.FILES, instance=imovel) 
         print("--- DEBUG FORM POST (Editar) ---")
         print(f"request.FILES: {request.FILES}") 
         
         if form.is_valid():
             print("Formulário (Editar) é VÁLIDO.")
-            foto_principal_obj = form.cleaned_data.get('foto_principal') # Pode ser None, False ou um arquivo
+            
+            if not assinatura_ativa:
+                messages.error(request, "Você não possui um plano ativo. Por favor, contate o suporte para editar seus anúncios.")
+                return redirect('meus_imoveis') 
+            
+            limite_de_fotos = assinatura_ativa.plano.limite_fotos
+            fotos_atuais = Foto.objects.filter(imovel=imovel).count()
             fotos_galeria_list = request.FILES.getlist('fotos_galeria')
+            quantidade_novas = len(fotos_galeria_list)
+            total_fotos = fotos_atuais + quantidade_novas
+
+            print(f"Plano: {assinatura_ativa.plano.nome}, Limite: {limite_de_fotos}, Fotos Atuais: {fotos_atuais}, Novas: {quantidade_novas}, Total: {total_fotos}")
+
+            if total_fotos > limite_de_fotos:
+                print("!!! ERRO: Usuário enviou mais fotos que o limite do plano (EDITAR).")
+                messages.error(
+                    request, 
+                    f"Erro: Seu plano ({assinatura_ativa.plano.nome}) permite no máximo {limite_de_fotos} fotos. Você já possui {fotos_atuais} e tentou adicionar mais {quantidade_novas}, ultrapassando o limite."
+                )
+                contexto = {'form': form, 'assinatura': assinatura_ativa}
+                return render(request, 'contas/anunciar_imovel.html', contexto)
+
+            foto_principal_obj = form.cleaned_data.get('foto_principal')
 
             try:
-                # 1. Salva os dados do Imovel SEM a foto principal
-                # Verifica se o campo foto_principal foi marcado para limpar (checkbox no form?)
-                # Se o form inclui um checkbox "limpar foto", form.cleaned_data['foto_principal'] será False
                 limpar_foto_principal = foto_principal_obj is False 
-
-                imovel_atualizado = form.save(commit=False) # Não salva ainda
-
-                # Guarda o nome da foto antiga, caso precise deletar do B2 (futuro)
+                imovel_atualizado = form.save(commit=False)
                 foto_antiga = imovel.foto_principal.name if imovel.foto_principal else None
 
-                # Se for limpar ou se uma nova foto foi enviada, limpa o campo antes do save principal
                 if limpar_foto_principal or (foto_principal_obj and isinstance(foto_principal_obj, InMemoryUploadedFile)):
                     imovel_atualizado.foto_principal = None 
 
@@ -308,15 +358,12 @@ def editar_imovel(request, imovel_id):
                 imovel_atualizado.save()
                 print(f"Imóvel atualizado (passo 1) ID: {imovel_atualizado.id}")
 
-                # 2. Processa a foto principal (limpar ou fazer upload novo)
-                upload_principal_success = True # Assume sucesso por padrão
+                upload_principal_success = True
 
                 if limpar_foto_principal:
                     print("Limpando foto principal (já feito no save anterior).")
-                    # Aqui você poderia adicionar a lógica para deletar 'foto_antiga' do B2
                 
                 elif foto_principal_obj and isinstance(foto_principal_obj, InMemoryUploadedFile):
-                    # Nova foto enviada, faz upload manual
                     original_filename = foto_principal_obj.name
                     unique_filename = generate_unique_filename(original_filename)
                     b2_object_name = f"{settings.AWS_LOCATION}/fotos_imoveis/{unique_filename}"
@@ -325,17 +372,12 @@ def editar_imovel(request, imovel_id):
                     upload_principal_success = upload_to_b2(foto_principal_obj, b2_object_name)
 
                     if upload_principal_success:
-                        # Atualiza o campo no banco SÓ COM O CAMINHO
                         imovel_atualizado.foto_principal.name = f"fotos_imoveis/{unique_filename}"
                         print(f"Atualizando DB com caminho da NOVA foto principal: {imovel_atualizado.foto_principal.name}")
                         imovel_atualizado.save(update_fields=['foto_principal'])
-                        # Aqui você poderia adicionar a lógica para deletar 'foto_antiga' do B2
                     else:
                         messages.error(request, f'Falha ao fazer upload da NOVA foto principal: {original_filename}')
-                        # Decide se quer parar ou continuar
-                        # return render(request, 'contas/anunciar_imovel.html', {'form': form})
 
-                # 3. Processa fotos da galeria (APENAS NOVAS FOTOS)
                 if upload_principal_success and fotos_galeria_list:
                     print(f"Processando {len(fotos_galeria_list)} NOVAS fotos da galeria manualmente...")
                     for file_obj in fotos_galeria_list:
@@ -369,13 +411,20 @@ def editar_imovel(request, imovel_id):
             print("Formulário (Editar) NÃO é válido.")
             print(form.errors.as_text()) 
             messages.error(request, 'Por favor, corrija os erros no formulário.')
+            
+            contexto = {'form': form, 'assinatura': assinatura_ativa}
+            return render(request, 'contas/anunciar_imovel.html', contexto)
 
     else: # Se for GET
         form = ImovelForm(instance=imovel)
         print("Renderizando formulário (Editar) para GET.") 
 
+    contexto = {
+        'form': form,
+        'assinatura': assinatura_ativa
+    }
     print("Renderizando template anunciar_imovel.html (Editar)...") 
-    return render(request, 'contas/anunciar_imovel.html', {'form': form})
+    return render(request, 'contas/anunciar_imovel.html', contexto)
 
 
 # --- View "Excluir Imóvel" (Original) ---
@@ -383,7 +432,6 @@ def editar_imovel(request, imovel_id):
 def excluir_imovel(request, imovel_id):
     imovel = get_object_or_404(Imovel, id=imovel_id, proprietario=request.user)
     if request.method == 'POST':
-        # (Futura melhoria: excluir fotos do B2)
         imovel.delete()
         messages.success(request, 'Imóvel excluído com sucesso!')
         return redirect('meus_imoveis')
@@ -398,12 +446,10 @@ def excluir_foto(request, foto_id):
     foto = get_object_or_404(Foto, id=foto_id)
     imovel_id = foto.imovel.id
     if foto.imovel.proprietario == request.user:
-        # (Futura melhoria: excluir foto do B2)
         foto.delete()
         messages.success(request, 'Foto excluída com sucesso.')
     else:
         messages.error(request, 'Você não tem permissão para excluir esta foto.')
-    # Corrigido para usar o ID do imóvel correto
     return redirect('editar_imovel', imovel_id=imovel_id) 
 
 # --- View "Perfil" (Original - Sem mudanças) ---
@@ -412,29 +458,25 @@ def perfil(request):
     if request.method == 'POST':
         if 'update_user' in request.POST:
             user_form = UserUpdateForm(request.POST, instance=request.user)
-            password_form = CustomPasswordChangeForm(request.user) # Mantém o form de senha limpo
+            password_form = CustomPasswordChangeForm(request.user)
             if user_form.is_valid():
                 user_form.save()
                 messages.success(request, 'Suas informações foram atualizadas com sucesso!')
                 return redirect('perfil')
-            # Se o user_form não for válido, renderiza ambos os forms com erros
         
         elif 'change_password' in request.POST:
             password_form = CustomPasswordChangeForm(request.user, request.POST)
-            user_form = UserUpdateForm(instance=request.user) # Mantém o form de usuário com dados atuais
+            user_form = UserUpdateForm(instance=request.user)
             if password_form.is_valid():
                 user = password_form.save()
                 update_session_auth_hash(request, user)
                 messages.success(request, 'Sua senha foi alterada com sucesso!')
                 return redirect('perfil')
-            # Se o password_form não for válido, renderiza ambos os forms com erros
         
-        # Se nenhum botão foi pressionado ou houve erro, inicializa ambos
         else:
-            user_form = UserUpdateForm(request.POST, instance=request.user) # Recarrega com POST data se houver erro
-            password_form = CustomPasswordChangeForm(request.user, request.POST) # Recarrega com POST data se houver erro
+            user_form = UserUpdateForm(request.POST, instance=request.user)
+            password_form = CustomPasswordChangeForm(request.user, request.POST)
     
-    # Se for GET ou se houve erro no POST e precisamos re-renderizar
     else:
         user_form = UserUpdateForm(instance=request.user)
         password_form = CustomPasswordChangeForm(request.user)
@@ -444,3 +486,109 @@ def perfil(request):
         'password_form': password_form
     }
     return render(request, 'contas/perfil.html', contexto)
+
+# --- VIEW: LISTAR PLANOS (ATUALIZADA) ---
+def listar_planos(request):
+    # Agora filtra apenas por planos que estão 'is_ativo'=True
+    planos = Plano.objects.filter(is_ativo=True).order_by('preco')
+    
+    contexto = {
+        'planos': planos
+    }
+    return render(request, 'contas/listar_planos.html', contexto)
+
+
+# --- VIEW: PAGAMENTO MERCADO PAGO (ATUALIZADA) ---
+@login_required
+def criar_pagamento(request, plano_id):
+    print(f"--- Iniciando criar_pagamento para Plano ID: {plano_id} ---")
+
+    try:
+        # Filtra também por 'is_ativo' para ninguém contratar plano desativado
+        plano = get_object_or_404(Plano, id=plano_id, is_ativo=True) 
+        print(f"Plano encontrado: {plano.nome}, Preço: {plano.preco}")
+    except Exception:
+        messages.error(request, "Plano não encontrado ou indisponível.")
+        return redirect('/') 
+
+    # Cria ou atualiza a assinatura do usuário para este plano
+    assinatura, criada = Assinatura.objects.get_or_create(
+        usuario=request.user,
+        defaults={'plano': plano, 'status': 'PENDENTE'}
+    )
+    
+    if not criada:
+        assinatura.plano = plano
+        assinatura.status = 'PENDENTE'
+        assinatura.data_inicio = None
+        assinatura.data_expiracao = None
+        assinatura.save()
+
+    print(f"Assinatura (ID: {assinatura.id}) criada/atualizada para status PENDENTE.")
+    
+    # --- [INÍCIO] LÓGICA DO PLANO GRÁTIS ---
+    if plano.preco == 0:
+        print("Plano Grátis detectado. Ativando assinatura automaticamente.")
+        
+        # Ativa a assinatura imediatamente
+        assinatura.status = Assinatura.StatusAssinatura.ATIVA
+        assinatura.data_inicio = timezone.now()
+        assinatura.data_expiracao = timezone.now() + timedelta(days=plano.duracao_dias)
+        assinatura.save(update_fields=['status', 'data_inicio', 'data_expiracao'])
+        
+        messages.success(request, f"Seu Plano Grátis ({plano.nome}) foi ativado! Você já pode anunciar.")
+        
+        # Redireciona para o painel "Meus Imóveis"
+        return redirect('meus_imoveis') 
+    # --- [FIM] LÓGICA DO PLANO GRÁTIS ---
+
+    # Se o preço não for 0, continua para o Mercado Pago...
+    try:
+        sdk = mercadopago.SDK(settings.MERCADOPAGO_ACCESS_TOKEN)
+    except Exception as e:
+        print(f"!!! ERRO ao iniciar SDK Mercado Pago: {e}")
+        messages.error(request, "Erro ao conectar ao sistema de pagamento.")
+        return redirect('/')
+
+    referencia_externa = f"assinatura_{assinatura.id}_usuario_{request.user.id}"
+    print(f"Gerando preferência com external_reference: {referencia_externa}")
+
+    base_url = "https://www.seudominio.com" 
+
+    preference_data = {
+        "items": [
+            {
+                "title": f"{plano.nome} - {request.user.email}",
+                "quantity": 1,
+                "unit_price": float(plano.preco),
+            }
+        ],
+        "external_reference": referencia_externa,
+        
+        "back_urls": {
+            "success": f"{base_url}/pagamento/sucesso/",
+            "failure": f"{base_url}/pagamento/falha/",
+            "pending": f"{base_url}/pagamento/pendente/"
+        },
+        "auto_return": "approved",
+    }
+
+    try:
+        preference_response = sdk.preference().create(preference_data)
+        
+        if settings.DEBUG:
+             checkout_url = preference_response["response"]["sandbox_init_point"]
+             print("Modo DEBUG: Usando sandbox_init_point (TESTE)")
+        else:
+             checkout_url = preference_response["response"]["init_point"]
+             print("Modo PRODUÇÃO: Usando init_point (REAL)")
+        
+        print(f"URL de Checkout: {checkout_url}")
+        
+        return redirect(checkout_url)
+
+    except Exception as e:
+        print(f"!!! ERRO ao criar preferência no Mercado Pago: {e} !!!")
+        traceback.print_exc()
+        messages.error(request, f"Erro ao gerar link de pagamento: {e}")
+        return redirect('/')

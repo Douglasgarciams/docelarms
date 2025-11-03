@@ -100,7 +100,7 @@ AUTH_PASSWORD_VALIDATORS = [
 # --- INTERNATIONALIZATION ---
 LANGUAGE_CODE = 'pt-br'
 TIME_ZONE = 'America/Campo_Grande'
-USE_I18N = True
+USE_I1N = True
 USE_L10N = True
 USE_THOUSAND_SEPARATOR = True
 USE_TZ = True
@@ -126,7 +126,24 @@ if DEBUG:
 
     # Use local filesystem for media files
     DEFAULT_FILE_STORAGE = 'django.core.files.storage.FileSystemStorage'
-    MEDIA_URL = '/media/' # URL to access local media files via dev server
+    
+    # --- [INÍCIO DA ALTERAÇÃO] ---
+    # Necessário porque a view 'upload_to_b2' faz upload manual
+    # e precisa desta variável mesmo em modo DEBUG.
+    AWS_LOCATION = 'media'
+    
+    # Vamos construir a URL completa do B2, assim como no modo de Produção,
+    # já que 'upload_to_b2' está enviando os arquivos para lá.
+    B2_ENDPOINT = os.getenv("B2_ENDPOINT")
+    AWS_STORAGE_BUCKET_NAME = os.getenv("B2_BUCKET_NAME")
+
+    if B2_ENDPOINT and AWS_STORAGE_BUCKET_NAME:
+        MEDIA_URL = f'https://{AWS_STORAGE_BUCKET_NAME}.{B2_ENDPOINT}/{AWS_LOCATION}/'
+    else:
+        # Fallback se as variáveis de ambiente não estiverem carregadas
+        print("!!! WARNING (DEBUG): B2_ENDPOINT ou B2_BUCKET_NAME não encontradas. MEDIA_URL pode falhar. !!!")
+        MEDIA_URL = '/media/' # Mantém o antigo se falhar
+    # --- [FIM DA ALTERAÇÃO] ---
 
     # Email backend for development (prints emails to console)
     EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
@@ -198,7 +215,8 @@ if not DEBUG: # Only print B2 details if in production mode
 else:
     print("Running in DEBUG mode, B2 settings not actively used by default.")
     print(f"Local MEDIA_ROOT: {MEDIA_ROOT}")
-    print(f"Local MEDIA_URL: {MEDIA_URL}")
+    # Esta linha agora deve mostrar a URL do B2
+    print(f"Local MEDIA_URL: {MEDIA_URL}") 
 print("--- FIM DO DEBUG DE STORAGE B2 ---")
 
 
@@ -240,9 +258,9 @@ LOGGING = {
              "propagate": False,
          },
          "urllib3": { # Logs de conexão de rede
-            "handlers": ["console"],
-            "level": "DEBUG", # Can be noisy, set to INFO if needed
-            "propagate": False,
+             "handlers": ["console"],
+             "level": "DEBUG", # Can be noisy, set to INFO if needed
+             "propagate": False,
          }
     },
     # Set root logger level based on DEBUG status
@@ -252,3 +270,4 @@ LOGGING = {
     },
 }
 # --- FIM DA SEÇÃO LOGGING ---
+MERCADOPAGO_ACCESS_TOKEN = 'TEST-2115056379086026-011214-f6d39061f853500ce2e17cbd6bdb43b0-83157671'

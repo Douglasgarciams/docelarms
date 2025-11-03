@@ -34,7 +34,7 @@
             <h3 class="mt-4 mb-3">Descrição</h3>
             <p class="lead">{{ imovel.descricao|linebreaksbr }}</p>
         </div>
-
+        
         <div class="col-lg-4">
             <div class="sticky-top" style="top: 100px;">
                 <div class="card border-0 shadow-lg mb-4">
@@ -53,9 +53,16 @@
                                 <span><i class="fas fa-map-pin me-2"></i>Bairro:</span>
                                 <span>{{ imovel.bairro.nome }}</span>
                             </li>
-                            <li class="d-flex justify-content-between align-items-center mb-2">
-                                <span><i class="fas fa-road me-2"></i>Endereço:</span>
-                                <span>{{ imovel.endereco }}</span>
+                            <li class="mb-3">
+                                <span class="d-block mb-1"><i class="fas fa-road me-2"></i>Endereço:</span>
+                                <span class="d-block">{{ imovel.endereco }}</span>
+                                
+                                <!-- ✅ Botão Ver no Google Maps -->
+                                <a href="https://www.google.com/maps/search/?api=1&query={{ imovel.endereco|urlencode }}+{{ imovel.bairro.nome|urlencode }}+{{ imovel.cidade.nome|urlencode }}+{{ imovel.cidade.estado|urlencode }}"
+                                   target="_blank"
+                                   class="btn btn-outline-primary btn-sm mt-2 w-100 fw-bold">
+                                   <i class="fas fa-map-marked-alt me-2"></i> Ver no Google Maps
+                                </a>
                             </li>
                             <li class="d-flex justify-content-between align-items-center mb-2">
                                 <span><i class="fas fa-handshake me-2"></i>Finalidade:</span>
@@ -92,7 +99,7 @@
                         </ul>
                     </div>
                 </div>
-
+                
                 <div class="card border-0 shadow-lg mb-4">
                     <div class="card-body p-4 text-center">
                         <h5 class="card-title fw-bold mb-3">Anunciado por:</h5>
@@ -129,7 +136,7 @@
         height: 150px;
         object-fit: cover;
         width: 100%;
-        cursor: pointer; /* Adiciona o cursor de clique nas miniaturas */
+        cursor: pointer;
     }
     .detail-list li {
         padding-top: 0.75rem;

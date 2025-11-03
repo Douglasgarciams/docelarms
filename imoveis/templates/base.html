@@ -90,38 +90,40 @@
 <body>
     
     <nav class="navbar navbar-expand-lg navbar-light bg-white sticky-top">
-        <div class="container">
-            <a class="navbar-brand fw-bold" href="/">
-                <i class="bi bi-house-heart-fill" style="color: var(--cor-primaria);"></i>
-                DOCELAR<span style="color: var(--cor-primaria);">MS</span>
-            </a>
+    <div class="container">
+        <a class="navbar-brand fw-bold" href="/">
+            <i class="bi bi-house-heart-fill" style="color: var(--cor-primaria);"></i>
+            DOCELAR<span style="color: var(--cor-primaria);">MS</span>
+        </a>
+        
+        <div class="ms-auto d-flex align-items-center">
             
-            <div class="ms-auto d-flex align-items-center">
-                {% if user.is_authenticated %}
+            <a href="{% url 'listar_planos' %}" class="btn btn-success btn-sm me-2">Planos e Preços</a>
+            {% if user.is_authenticated %}
                 <a href="{% url 'anunciar_imovel' %}" class="btn btn-primary btn-sm me-2">Anunciar novo imóvel</a>
-                    <div class="dropdown">
-                        <button class="btn btn-outline-primary btn-sm dropdown-toggle" type="button" id="userMenu" data-bs-toggle="dropdown" aria-expanded="false">
-                            Olá, {{ user.username }}
-                        </button>
-                        <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="userMenu">
-                            <li><a class="dropdown-item" href="{% url 'meus_imoveis' %}">Meus Imóveis</a></li>
-                            <li><a class="dropdown-item" href="{% url 'perfil' %}">Meu Perfil</a></li>
-                            <li><hr class="dropdown-divider"></li>
-                            <li>
-                                <form method="post" action="{% url 'logout' %}" class="d-inline">
-                                    {% csrf_token %}
-                                    <button type="submit" class="dropdown-item">Sair</button>
-                                </form>
-                            </li>
-                        </ul>
-                    </div>
-                {% else %}
-                    <a href="{% url 'login' %}" class="btn btn-outline-primary btn-sm me-2">Entrar</a>
-                    <a href="{% url 'cadastro' %}" class="btn btn-primary btn-sm">Cadastrar-se</a>
-                {% endif %}
-            </div>
-            </div>
-    </nav>
+                <div class="dropdown">
+                    <button class="btn btn-outline-primary btn-sm dropdown-toggle" type="button" id="userMenu" data-bs-toggle="dropdown" aria-expanded="false">
+                        Olá, {{ user.username }}
+                    </button>
+                    <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="userMenu">
+                        <li><a class="dropdown-item" href="{% url 'meus_imoveis' %}">Meus Imóveis</a></li>
+                        <li><a class="dropdown-item" href="{% url 'perfil' %}">Meu Perfil</a></li>
+                        <li><hr class="dropdown-divider"></li>
+                        <li>
+                            <form method="post" action="{% url 'logout' %}" class="d-inline">
+                                {% csrf_token %}
+                                <button type="submit" class="dropdown-item">Sair</button>
+                            </form>
+                        </li>
+                    </ul>
+                </div>
+            {% else %}
+                <a href="{% url 'login' %}" class="btn btn-outline-primary btn-sm me-2">Entrar</a>
+                <a href="{% url 'cadastro' %}" class="btn btn-primary btn-sm">Cadastrar-se</a>
+            {% endif %}
+        </div>
+    </div>
+</nav>
 
     <main>
         {% block content %}
