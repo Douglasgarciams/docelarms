@@ -1,44 +1,209 @@
 {% extends 'base.html' %}
 {% load humanize %}
-
-{% block title %}Encontre o Imóvel dos Seus Sonhos{% endblock %}
+{% load static %} {% block title %}Encontre o Imóvel dos Seus Sonhos{% endblock %}
 
 {% block content %}
 
-<div class="container-fluid text-white d-flex align-items-center justify-content-center" style="background: linear-gradient(rgba(0,0,0,0.5), rgba(0,0,0,0.5)), url('https://images.unsplash.com/photo-1580587771525-78b9dba3b914?q=80&w=1974&auto=format&fit=crop') no-repeat center center; background-size: cover; min-height: 60vh;">
-    <div class="text-center">
-        <h1 class="display-3 fw-bold mb-4">A Chave para a Sua Nova Vida</h1>
-        
-        <div class="p-4 rounded-3" style="background-color: rgba(255,255,255,0.1); backdrop-filter: blur(10px);">
-            <form method="GET" action="" class="row g-2 align-items-center justify-content-center">
-                <div class="col-md-3">
-                    <select name="finalidade" class="form-select form-select-lg">
-                        <option value="">Comprar ou Alugar?</option>
-                        <option value="VENDA" {% if valores_filtro.finalidade|default:'' == 'VENDA' %}selected{% endif %}>Comprar</option>
-                        <option value="ALUGUEL" {% if valores_filtro.finalidade|default:'' == 'ALUGUEL' %}selected{% endif %}>Alugar</option>
-                    </select>
-                </div>
-                <div class="col-md-3">
-                    <select name="cidade" id="hero_cidade" class="form-select form-select-lg">
-                        <option value="">Cidade</option>
-                        {% for cidade in cidades %}
-                            <option value="{{ cidade.id }}" {% if valores_filtro.cidade|default:'' == cidade.id|stringformat:"s" %}selected{% endif %}>{{ cidade.nome }}</option>
-                        {% endfor %}
-                    </select>
-                </div>
-                <div class="col-md-3">
-                    <select name="bairro" id="hero_bairro" class="form-select form-select-lg" disabled>
-                        <option value="">Bairro</option>
-                        </select>
-                </div>
-                <div class="col-md-2">
-                    <button type="submit" class="btn btn-primary btn-lg w-100">Buscar</button>
-                </div>
-            </form>
-        </div>
-    </div>
-</div>
+<header id="heroCarousel" class="carousel slide" data-bs-ride="carousel">
 
+    <div class="carousel-indicators">
+        <button type="button" data-bs-target="#heroCarousel" data-bs-slide-to="0" class="active" aria-current="true" aria-label="Slide 1"></button>
+        <button type="button" data-bs-target="#heroCarousel" data-bs-slide-to="1" aria-label="Slide 2"></button>
+        <button type="button" data-bs-target="#heroCarousel" data-bs-slide-to="2" aria-label="Slide 3"></button>
+        <button type="button" data-bs-target="#heroCarousel" data-bs-slide-to="3" aria-label="Slide 4"></button>
+        <button type="button" data-bs-target="#heroCarousel" data-bs-slide-to="4" aria-label="Slide 5"></button>
+    </div>
+
+    <div class="carousel-inner">
+        
+        <div class="carousel-item active" style="background-image: url('{% static 'img/carousel/capa1.jpg' %}')">
+            <div class="carousel-caption">
+                <div class="text-center">
+                    <h1 class="display-3 fw-bold mb-4">A Chave para a Sua Nova Vida</h1>
+                    
+                    <div class="p-4 rounded-3" style="background-color: rgba(255,255,255,0.1); backdrop-filter: blur(10px);">
+                        <form method="GET" action="" class="row g-2 align-items-center justify-content-center">
+                            
+                            <div class="col-md-4">
+                                <select name="finalidade" class="form-select form-select-lg">
+                                    <option value="">Comprar ou Alugar?</option>
+                                    <option value="VENDA" {% if valores_filtro.finalidade|default:'' == 'VENDA' %}selected{% endif %}>Comprar</option>
+                                    <option value="ALUGUEL" {% if valores_filtro.finalidade|default:'' == 'ALUGUEL' %}selected{% endif %}>Alugar</option>
+                                </select>
+                            </div>
+                            <div class="col-md-3">
+                                <select name="cidade" id="hero_cidade" class="form-select form-select-lg">
+                                    <option value="">Cidade</option>
+                                    {% for cidade in cidades %}
+                                        <option value="{{ cidade.id }}" {% if valores_filtro.cidade|default:'' == cidade.id|stringformat:"s" %}selected{% endif %}>{{ cidade.nome }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div class="col-md-3">
+                                <select name="bairro" id="hero_bairro" class="form-select form-select-lg" disabled>
+                                    <option value="">Bairro</option>
+                                    </select>
+                            </div>
+                            <div class="col-md-2">
+                                <button type="submit" class="btn btn-primary btn-lg w-100">Buscar</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="carousel-item" style="background-image: url('{% static 'img/carousel/capa2.jpg' %}')">
+            <div class="carousel-caption">
+                <div class="text-center">
+                    <h1 class="display-3 fw-bold mb-4">Encontre seu Lar Ideal</h1>
+                    
+                    <div class="p-4 rounded-3" style="background-color: rgba(255,255,255,0.1); backdrop-filter: blur(10px);">
+                        <form method="GET" action="" class="row g-2 align-items-center justify-content-center">
+
+                            <div class="col-md-4">
+                                <select name="finalidade" class="form-select form-select-lg">
+                                    <option value="">Comprar ou Alugar?</option>
+                                    <option value="VENDA" {% if valores_filtro.finalidade|default:'' == 'VENDA' %}selected{% endif %}>Comprar</option>
+                                    <option value="ALUGUEL" {% if valores_filtro.finalidade|default:'' == 'ALUGUEL' %}selected{% endif %}>Alugar</option>
+                                </select>
+                            </div>
+                            <div class="col-md-3">
+                                <select name="cidade" id="hero_cidade_2" class="form-select form-select-lg"> <option value="">Cidade</option>
+                                    {% for cidade in cidades %}
+                                        <option value="{{ cidade.id }}" {% if valores_filtro.cidade|default:'' == cidade.id|stringformat:"s" %}selected{% endif %}>{{ cidade.nome }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div class="col-md-3">
+                                <select name="bairro" id="hero_bairro_2" class="form-select form-select-lg" disabled> <option value="">Bairro</option>
+                                    </select>
+                            </div>
+                            <div class="col-md-2">
+                                <button type="submit" class="btn btn-primary btn-lg w-100">Buscar</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="carousel-item" style="background-image: url('{% static 'img/carousel/capa3.jpg' %}')">
+            <div class="carousel-caption">
+                <div class="text-center">
+                    <h1 class="display-3 fw-bold mb-4">Investimento Seguro</h1>
+                    
+                    <div class="p-4 rounded-3" style="background-color: rgba(255,255,255,0.1); backdrop-filter: blur(10px);">
+                        <form method="GET" action="" class="row g-2 align-items-center justify-content-center">
+
+                            <div class="col-md-4">
+                                <select name="finalidade" class="form-select form-select-lg">
+                                    <option value="">Comprar ou Alugar?</option>
+                                    <option value="VENDA" {% if valores_filtro.finalidade|default:'' == 'VENDA' %}selected{% endif %}>Comprar</option>
+                                    <option value="ALUGUEL" {% if valores_filtro.finalidade|default:'' == 'ALUGUEL' %}selected{% endif %}>Alugar</option>
+                                </select>
+                            </div>
+                            <div class="col-md-3">
+                                <select name="cidade" id="hero_cidade_3" class="form-select form-select-lg"> <option value="">Cidade</option>
+                                    {% for cidade in cidades %}
+                                        <option value="{{ cidade.id }}" {% if valores_filtro.cidade|default:'' == cidade.id|stringformat:"s" %}selected{% endif %}>{{ cidade.nome }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div class="col-md-3">
+                                <select name="bairro" id="hero_bairro_3" class="form-select form-select-lg" disabled> <option value="">Bairro</option>
+                                    </select>
+                            </div>
+                            <div class="col-md-2">
+                                <button type="submit" class="btn btn-primary btn-lg w-100">Buscar</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="carousel-item" style="background-image: url('{% static 'img/carousel/capa4.jpg' %}')">
+            <div class="carousel-caption">
+                <div class="text-center">
+                    <h1 class="display-3 fw-bold mb-4">Qualidade e Confiança</h1>
+                    
+                    <div class="p-4 rounded-3" style="background-color: rgba(255,255,255,0.1); backdrop-filter: blur(10px);">
+                        <form method="GET" action="" class="row g-2 align-items-center justify-content-center">
+
+                            <div class="col-md-4">
+                                <select name="finalidade" class="form-select form-select-lg">
+                                    <option value="">Comprar ou Alugar?</option>
+                                    <option value="VENDA" {% if valores_filtro.finalidade|default:'' == 'VENDA' %}selected{% endif %}>Comprar</option>
+                                    <option value="ALUGUEL" {% if valores_filtro.finalidade|default:'' == 'ALUGUEL' %}selected{% endif %}>Alugar</option>
+                                </select>
+                            </div>
+                            <div class="col-md-3">
+                                <select name="cidade" id="hero_cidade_4" class="form-select form-select-lg"> <option value="">Cidade</option>
+                                    {% for cidade in cidades %}
+                                        <option value="{{ cidade.id }}" {% if valores_filtro.cidade|default:'' == cidade.id|stringformat:"s" %}selected{% endif %}>{{ cidade.nome }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div class="col-md-3">
+                                <select name="bairro" id="hero_bairro_4" class="form-select form-select-lg" disabled> <option value="">Bairro</option>
+                                    </select>
+                            </div>
+                            <div class="col-md-2">
+                                <button type="submit" class="btn btn-primary btn-lg w-100">Buscar</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="carousel-item" style="background-image: url('{% static 'img/carousel/capa5.jpg' %}')">
+            <div class="carousel-caption">
+                <div class="text-center">
+                    <h1 class="display-3 fw-bold mb-4">Seu Futuro Começa Aqui</h1>
+                    
+                    <div class="p-4 rounded-3" style="background-color: rgba(255,255,255,0.1); backdrop-filter: blur(10px);">
+                        <form method="GET" action="" class="row g-2 align-items-center justify-content-center">
+
+                            <div class="col-md-4">
+                                <select name="finalidade" class="form-select form-select-lg">
+                                    <option value="">Comprar ou Alugar?</option>
+                                    <option value="VENDA" {% if valores_filtro.finalidade|default:'' == 'VENDA' %}selected{% endif %}>Comprar</option>
+                                    <option value="ALUGUEL" {% if valores_filtro.finalidade|default:'' == 'ALUGUEL' %}selected{% endif %}>Alugar</option>
+                                </select>
+                            </div>
+                            <div class="col-md-3">
+                                <select name="cidade" id="hero_cidade_5" class="form-select form-select-lg"> <option value="">Cidade</option>
+                                    {% for cidade in cidades %}
+                                        <option value="{{ cidade.id }}" {% if valores_filtro.cidade|default:'' == cidade.id|stringformat:"s" %}selected{% endif %}>{{ cidade.nome }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div class="col-md-3">
+                                <select name="bairro" id="hero_bairro_5" class="form-select form-select-lg" disabled> <option value="">Bairro</option>
+                                    </select>
+                            </div>
+                            <div class="col-md-2">
+                                <button type="submit" class="btn btn-primary btn-lg w-100">Buscar</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <button class="carousel-control-prev" type="button" data-bs-target="#heroCarousel" data-bs-slide="prev">
+        <span class="carousel-control-prev-icon" aria-hidden="true"></span>
+        <span class="visually-hidden">Anterior</span>
+    </button>
+    <button class="carousel-control-next" type="button" data-bs-target="#heroCarousel" data-bs-slide="next">
+        <span class="carousel-control-next-icon" aria-hidden="true"></span>
+        <span class="visually-hidden">Próximo</span>
+    </button>
+</header>
 {% if imobiliaria_selecionada %}
 <div class="container mb-4 mt-5">
     <div class="card shadow-sm">
@@ -285,8 +450,15 @@
             }
         }
 
+        // --- [INÍCIO] ATUALIZAÇÃO DO CARROSSEL ---
         // Configura para a barra de busca principal (Hero)
         configurarDropdownBairros('hero_cidade', 'hero_bairro');
+        // Configura para os outros 4 slides
+        configurarDropdownBairros('hero_cidade_2', 'hero_bairro_2');
+        configurarDropdownBairros('hero_cidade_3', 'hero_bairro_3');
+        configurarDropdownBairros('hero_cidade_4', 'hero_bairro_4');
+        configurarDropdownBairros('hero_cidade_5', 'hero_bairro_5');
+        // --- [FIM] ATUALIZAÇÃO DO CARROSSEL ---
 
         // Configura para a barra lateral (Sidebar)
         configurarDropdownBairros('sidebar_cidade', 'sidebar_bairro');

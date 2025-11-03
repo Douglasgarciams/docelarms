@@ -85,6 +85,73 @@
             font-weight: 700;
             z-index: 10;
         }
+
+        /* --- [INÍCIO] CSS PARA O CARROSSEL DA CAPA --- */
+        #heroCarousel {
+            /* Define a altura do carrossel. 80vh = 80% da altura da tela */
+            height: 80vh; 
+            min-height: 400px;
+            width: 100%;
+        }
+
+        #heroCarousel .carousel-item {
+            height: 80vh;
+            min-height: 400px;
+            width: 100%;
+            /* Garante que a imagem cubra o espaço */
+            background-size: cover; 
+            background-position: center center;
+            background-repeat: no-repeat;
+            position: relative; /* Necessário para o overlay */
+        }
+
+        /* Adiciona um "filtro" escuro sobre a imagem para o texto ficar legível */
+        #heroCarousel .carousel-item::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.4); /* Overlay preto com 40% de opacidade */
+        }
+
+        #heroCarousel .carousel-caption {
+            /* Posiciona o texto no centro */
+            top: 0;
+            bottom: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            z-index: 10; /* Garante que o texto fique sobre o overlay */
+        }
+
+        #heroCarousel .carousel-caption h1 {
+            font-size: 3.5rem;
+            font-weight: 700;
+            color: #fff;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5); /* Sombra no texto */
+        }
+
+        #heroCarousel .carousel-caption p {
+            font-size: 1.5rem;
+            color: #f8f9fa;
+            text-shadow: 1px 1px 3px rgba(0, 0, 0, 0.5);
+        }
+
+        /* Ajuste de fonte para telas pequenas */
+        @media (max-width: 768px) {
+            #heroCarousel .carousel-caption h1 {
+                font-size: 2.2rem;
+            }
+            #heroCarousel .carousel-caption p {
+                font-size: 1.1rem;
+            }
+        }
+        /* --- [FIM] CSS PARA O CARROSSEL DA CAPA --- */
+
     </style>
 </head>
 <body>
