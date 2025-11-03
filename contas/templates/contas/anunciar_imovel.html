@@ -27,14 +27,29 @@
                             
                             <div class="col-md-4">
                                 <label class="form-label">Seu Plano</label>
-                                {% if assinatura and assinatura.status == 'ATIVA' %}
-                                    <input type="text" class="form-control" 
-                                           value="{{ assinatura.plano.nome }} (Ativo)" 
-                                           readonly 
-                                           style="background-color: #e9ecef; font-weight: bold; color: green;">
+                                
+                                {% if assinatura %}
+                                    {% if assinatura.status == 'ATIVA' %}
+                                        <input type="text" class="form-control" 
+                                               value="{{ assinatura.plano.nome }} (Ativo)" 
+                                               readonly 
+                                               style="background-color: #e9ecef; font-weight: bold; color: green;">
+                                    
+                                    {% elif assinatura.status == 'PENDENTE' %}
+                                        <input type="text" class="form-control" 
+                                               value="{{ assinatura.plano.nome }} (Pendente)" 
+                                               readonly 
+                                               style="background-color: #e9ecef; font-weight: bold; color: #b08000;">
+                                    
+                                    {% else %}
+                                        <input type="text" class="form-control" 
+                                               value="{{ assinatura.plano.nome }} ({{ assinatura.get_status_display }})" 
+                                               readonly 
+                                               style="background-color: #e9ecef; font-weight: bold; color: red;">
+                                    {% endif %}
                                 {% else %}
                                     <input type="text" class="form-control" 
-                                           value="Nenhum plano ativo" 
+                                           value="Nenhum plano encontrado" 
                                            readonly 
                                            style="background-color: #e9ecef; font-weight: bold; color: red;">
                                 {% endif %}

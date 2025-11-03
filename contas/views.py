@@ -156,29 +156,79 @@ def cadastro(request):
         form = CustomUserCreationForm()
     return render(request, 'contas/cadastro.html', {'form': form})
 
-# --- View do Dashboard "Meus Imóveis" (Original - Sem mudanças) ---
+# --- View do Dashboard "Meus Imóveis" (ATUALIZADA COM VERIFICAÇÃO DE EXPIRAÇÃO) ---
 @login_required
 def meus_imoveis(request):
+    
+    agora = timezone.now()
+
+    # --- [INÍCIO DA CORREÇÃO - O "VIGIA"] ---
+    # 1. Tenta verificar a assinatura do usuário
+    try:
+        assinatura = request.user.assinatura
+        
+        # 2. Se a assinatura está 'ATIVA' mas a data de expiração já passou...
+        if assinatura.status == 'ATIVA' and assinatura.data_expiracao and assinatura.data_expiracao < agora:
+            
+            print(f"Assinatura (ID: {assinatura.id}) do usuário {request.user.username} expirou. Atualizando status...")
+            
+            # 3. Muda o status da ASSINATURA para 'EXPIRADA'
+            assinatura.status = Assinatura.StatusAssinatura.EXPIRADA
+            assinatura.save(update_fields=['status'])
+            
+            # 4. Muda o status de todos os IMÓVEIS ATIVOS dele para 'EXPIRADO'
+            Imovel.objects.filter(
+                proprietario=request.user,
+                status_publicacao='ATIVO'
+            ).update(status_publicacao=Imovel.StatusPublicacao.EXPIRADO)
+            
+            print("Imóveis ativos do usuário foram atualizados para 'Expirado'.")
+            
+    except Assinatura.DoesNotExist:
+        pass # Sem assinatura, não faz nada
+    except Exception as e:
+        # Proteção para não quebrar a página se algo der errado na verificação
+        print(f"Erro ao verificar expiração de assinatura: {e}")
+    # --- [FIM DA CORREÇÃO] ---
+
+    # Agora, a query de imóveis vai buscar os status ATUALIZADOS do banco
     imoveis_do_usuario = Imovel.objects.filter(proprietario=request.user).order_by('-data_cadastro')
+    
     contexto = {
         'imoveis': imoveis_do_usuario
     }
     return render(request, 'contas/meus_imoveis.html', contexto)
 
-# --- View "Anunciar Imóvel" (TOTALMENTE ATUALIZADA) ---
+# --- View "Anunciar Imóvel" (LOGICA ATUALIZADA) ---
 @login_required
 def anunciar_imovel(request):
     print(f"--- Iniciando anunciar_imovel ---")
     print(f"Método da Requisição: {request.method}")
 
     # --- [LÓGICA DE ASSINATURA ATUALIZADA] ---
-    assinatura_ativa = None
+    assinatura_usuario = None # Começa como 'Nenhuma'
+    assinatura_valida_para_postar = False # Começa como 'Não'
+    agora = timezone.now() # Pega a hora atual
+    
     try:
         assinatura_usuario = request.user.assinatura
-        if assinatura_usuario.status == 'ATIVA' and assinatura_usuario.plano and assinatura_usuario.plano.is_ativo:
-            assinatura_ativa = assinatura_usuario
+        
+        # --- [CORREÇÃO AQUI] ---
+        # 1. Verifica se o plano dela está ativo (visível)
+        plano_esta_ativo = assinatura_usuario.plano and assinatura_usuario.plano.is_ativo
+        
+        # 2. Verifica se a ASSINATURA está Ativa (não pendente, não cancelada)
+        assinatura_esta_ativa = assinatura_usuario.status == 'ATIVA'
+        
+        # 3. Verifica se a ASSINATURA não expirou
+        assinatura_nao_expirou = assinatura_usuario.data_expiracao and assinatura_usuario.data_expiracao > agora
+
+        if plano_esta_ativo and assinatura_esta_ativa and assinatura_nao_expirou:
+            assinatura_valida_para_postar = True
+        # --- [FIM DA CORREÇÃO] ---
+            
     except Assinatura.DoesNotExist:
-        pass
+        pass # Não tem assinatura, 'assinatura_usuario' = None
     # --- [FIM DA LÓGICA DE ASSINATURA] ---
 
     if request.method == 'POST':
@@ -186,42 +236,42 @@ def anunciar_imovel(request):
         print("--- DEBUG FORM POST (Anunciar) ---")
         print(f"request.FILES: {request.FILES}") 
 
+        # --- [REGRA DE NEGÓCIO ATUALIZADA] ---
+        # 3. VERIFICA SE O USUÁRIO TEM QUALQUER PLANO (MESMO PENDENTE)
+        if not assinatura_usuario:
+            messages.error(request, "Você não possui um plano selecionado. Por favor, escolha um plano para poder anunciar.")
+            return redirect('listar_planos') 
+
         if form.is_valid():
             print("Formulário (Anunciar) é VÁLIDO.")
 
-            # --- [LÓGICA DE VERIFICAÇÃO ATUALIZADA] ---
-            
-            # 1. (Assinatura já buscada lá em cima)
-            # 2. Verificação de Limite de Anúncios
-            if not assinatura_ativa:
-                messages.error(request, "Você não possui um plano ativo. Por favor, contrate um plano para poder anunciar.")
-                return redirect('listar_planos') 
-
-            # 3. Contar anúncios ativos (e pendentes) do usuário
+            # 4. Verificação de Limite de Anúncios
+            limite_anuncios = assinatura_usuario.plano.limite_anuncios
             anuncios_existentes_count = Imovel.objects.filter(
                 proprietario=request.user, 
                 status_publicacao__in=['ATIVO', 'PEND_APROV']
             ).count()
             
-            limite_anuncios = assinatura_ativa.plano.limite_anuncios
-            
-            print(f"Plano: {assinatura_ativa.plano.nome}, Limite Anúncios: {limite_anuncios}, Anúncios Existentes: {anuncios_existentes_count}")
+            print(f"Plano: {assinatura_usuario.plano.nome}, Limite Anúncios: {limite_anuncios}, Anúncios Existentes: {anuncios_existentes_count}")
 
-            # 4. APLICAR REGRA DE ANÚNCIO!
-            if anuncios_existentes_count >= limite_anuncios:
-                messages.error(request, f"Erro: Seu plano ({assinatura_ativa.plano.nome}) permite no máximo {limite_anuncios} anúncio(s) ativo(s) ou em análise. Você já atingiu seu limite.")
+            # 5. APLICAR REGRA DE ANÚNCIO! (Só permite se a assinatura for válida)
+            if not assinatura_valida_para_postar and anuncios_existentes_count >= limite_anuncios:
+                messages.error(request, f"Erro: Seu plano ({assinatura_usuario.plano.nome}) não está ativo ou expirou. Você não pode postar novos anúncios.")
+                return redirect('meus_imoveis') 
+            elif anuncios_existentes_count >= limite_anuncios:
+                messages.error(request, f"Erro: Seu plano ({assinatura_usuario.plano.nome}) permite no máximo {limite_anuncios} anúncio(s) ativo(s) ou em análise. Você já atingiu seu limite.")
                 return redirect('meus_imoveis') 
 
-            # 5. Verificação de Limite de Fotos (do plano da ASSINATURA)
-            limite_de_fotos = assinatura_ativa.plano.limite_fotos
+            # 6. Verificação de Limite de Fotos
+            limite_de_fotos = assinatura_usuario.plano.limite_fotos
             fotos_galeria_list = request.FILES.getlist('fotos_galeria')
             quantidade_enviada = len(fotos_galeria_list)
             
             print(f"Limite Fotos: {limite_de_fotos}, Enviadas: {quantidade_enviada}")
 
             if quantidade_enviada > limite_de_fotos:
-                messages.error(request, f"Erro: Seu plano ({assinatura_ativa.plano.nome}) permite no máximo {limite_de_fotos} fotos na galeria, mas você tentou enviar {quantidade_enviada}.")
-                contexto = {'form': form, 'assinatura': assinatura_ativa}
+                messages.error(request, f"Erro: Seu plano ({assinatura_usuario.plano.nome}) permite no máximo {limite_de_fotos} fotos na galeria, mas você tentou enviar {quantidade_enviada}.")
+                contexto = {'form': form, 'assinatura': assinatura_usuario, 'assinatura_ativa': assinatura_valida_para_postar}
                 return render(request, 'contas/anunciar_imovel.html', contexto)
             
             # --- [FIM DA LÓGICA ATUALIZADA] ---
@@ -270,7 +320,7 @@ def anunciar_imovel(request):
                                 messages.warning(request, f'Falha ao fazer upload da foto da galeria: {original_filename}')
 
                 if upload_principal_success:
-                    messages.success(request, 'Seu imóvel foi enviado para análise!')
+                    messages.success(request, 'Seu imóvel foi enviado para análise! Ele aparecerá no site assim que o pagamento e o conteúdo forem aprovados.')
                     print("Redirecionando para meus_imoveis...") 
                     return redirect('meus_imoveis')
 
@@ -286,62 +336,81 @@ def anunciar_imovel(request):
             print(form.errors.as_text()) 
             messages.error(request, 'Por favor, corrija os erros no formulário.')
             
-            contexto = {'form': form, 'assinatura': assinatura_ativa}
+            contexto = {'form': form, 'assinatura': assinatura_usuario, 'assinatura_ativa': assinatura_valida_para_postar}
             return render(request, 'contas/anunciar_imovel.html', contexto)
 
     else: # Se for GET
+        if not assinatura_usuario:
+            messages.error(request, "Você precisa escolher um plano antes de anunciar.")
+            return redirect('listar_planos') 
+
         form = ImovelForm()
         print("Renderizando formulário (Anunciar) para GET.") 
     
     contexto = {
         'form': form,
-        'assinatura': assinatura_ativa
+        'assinatura': assinatura_usuario,
+        'assinatura_ativa': assinatura_valida_para_postar
     }
-    print(f"Renderizando template com assinatura: {assinatura_ativa}")
+    print(f"Renderizando template com assinatura: {assinatura_usuario} | É válida? {assinatura_valida_para_postar}")
     return render(request, 'contas/anunciar_imovel.html', contexto)
 
-# --- View "Editar Imóvel" (ATUALIZADA) ---
+# --- View "Editar Imóvel" (LOGICA ATUALIZADA) ---
 @login_required
 def editar_imovel(request, imovel_id):
     imovel = get_object_or_404(Imovel, id=imovel_id, proprietario=request.user)
     print(f"--- Iniciando editar_imovel para ID: {imovel_id} ---")
     print(f"Método da Requisição: {request.method}")
 
-    assinatura_ativa = None
+    # --- [LÓGICA DE ASSINATURA ATUALIZADA] ---
+    assinatura_usuario = None
+    assinatura_valida_para_postar = False
+    agora = timezone.now()
+    
     try:
         assinatura_usuario = request.user.assinatura
-        if assinatura_usuario.status == 'ATIVA':
-            assinatura_ativa = assinatura_usuario
+        
+        # --- [CORREÇÃO AQUI] ---
+        plano_esta_ativo = assinatura_usuario.plano and assinatura_usuario.plano.is_ativo
+        assinatura_esta_ativa = assinatura_usuario.status == 'ATIVA'
+        assinatura_nao_expirou = assinatura_usuario.data_expiracao and assinatura_usuario.data_expiracao > agora
+
+        if plano_esta_ativo and assinatura_esta_ativa and assinatura_nao_expirou:
+            assinatura_valida_para_postar = True
+        # --- [FIM DA CORREÇÃO] ---
+            
     except Assinatura.DoesNotExist:
         pass
+    # --- [FIM DA LÓGICA DE ASSINATURA] ---
+
 
     if request.method == 'POST':
         form = ImovelForm(request.POST, request.FILES, instance=imovel) 
         print("--- DEBUG FORM POST (Editar) ---")
         print(f"request.FILES: {request.FILES}") 
         
+        if not assinatura_usuario:
+            messages.error(request, "Você não possui um plano ativo. Por favor, contate o suporte para editar seus anúncios.")
+            return redirect('meus_imoveis') 
+
         if form.is_valid():
             print("Formulário (Editar) é VÁLIDO.")
             
-            if not assinatura_ativa:
-                messages.error(request, "Você não possui um plano ativo. Por favor, contate o suporte para editar seus anúncios.")
-                return redirect('meus_imoveis') 
-            
-            limite_de_fotos = assinatura_ativa.plano.limite_fotos
+            limite_de_fotos = assinatura_usuario.plano.limite_fotos
             fotos_atuais = Foto.objects.filter(imovel=imovel).count()
             fotos_galeria_list = request.FILES.getlist('fotos_galeria')
             quantidade_novas = len(fotos_galeria_list)
             total_fotos = fotos_atuais + quantidade_novas
 
-            print(f"Plano: {assinatura_ativa.plano.nome}, Limite: {limite_de_fotos}, Fotos Atuais: {fotos_atuais}, Novas: {quantidade_novas}, Total: {total_fotos}")
+            print(f"Plano: {assinatura_usuario.plano.nome}, Limite: {limite_de_fotos}, Fotos Atuais: {fotos_atuais}, Novas: {quantidade_novas}, Total: {total_fotos}")
 
             if total_fotos > limite_de_fotos:
                 print("!!! ERRO: Usuário enviou mais fotos que o limite do plano (EDITAR).")
                 messages.error(
                     request, 
-                    f"Erro: Seu plano ({assinatura_ativa.plano.nome}) permite no máximo {limite_de_fotos} fotos. Você já possui {fotos_atuais} e tentou adicionar mais {quantidade_novas}, ultrapassando o limite."
+                    f"Erro: Seu plano ({assinatura_usuario.plano.nome}) permite no máximo {limite_de_fotos} fotos. Você já possui {fotos_atuais} e tentou adicionar mais {quantidade_novas}, ultrapassando o limite."
                 )
-                contexto = {'form': form, 'assinatura': assinatura_ativa}
+                contexto = {'form': form, 'assinatura': assinatura_usuario, 'assinatura_ativa': assinatura_valida_para_postar}
                 return render(request, 'contas/anunciar_imovel.html', contexto)
 
             foto_principal_obj = form.cleaned_data.get('foto_principal')
@@ -412,7 +481,7 @@ def editar_imovel(request, imovel_id):
             print(form.errors.as_text()) 
             messages.error(request, 'Por favor, corrija os erros no formulário.')
             
-            contexto = {'form': form, 'assinatura': assinatura_ativa}
+            contexto = {'form': form, 'assinatura': assinatura_usuario, 'assinatura_ativa': assinatura_valida_para_postar}
             return render(request, 'contas/anunciar_imovel.html', contexto)
 
     else: # Se for GET
@@ -421,7 +490,8 @@ def editar_imovel(request, imovel_id):
 
     contexto = {
         'form': form,
-        'assinatura': assinatura_ativa
+        'assinatura': assinatura_usuario,
+        'assinatura_ativa': assinatura_valida_para_postar
     }
     print("Renderizando template anunciar_imovel.html (Editar)...") 
     return render(request, 'contas/anunciar_imovel.html', contexto)
@@ -511,7 +581,6 @@ def criar_pagamento(request, plano_id):
         messages.error(request, "Plano não encontrado ou indisponível.")
         return redirect('/') 
 
-    # Cria ou atualiza a assinatura do usuário para este plano
     assinatura, criada = Assinatura.objects.get_or_create(
         usuario=request.user,
         defaults={'plano': plano, 'status': 'PENDENTE'}
@@ -530,7 +599,6 @@ def criar_pagamento(request, plano_id):
     if plano.preco == 0:
         print("Plano Grátis detectado. Ativando assinatura automaticamente.")
         
-        # Ativa a assinatura imediatamente
         assinatura.status = Assinatura.StatusAssinatura.ATIVA
         assinatura.data_inicio = timezone.now()
         assinatura.data_expiracao = timezone.now() + timedelta(days=plano.duracao_dias)
@@ -538,11 +606,9 @@ def criar_pagamento(request, plano_id):
         
         messages.success(request, f"Seu Plano Grátis ({plano.nome}) foi ativado! Você já pode anunciar.")
         
-        # Redireciona para o painel "Meus Imóveis"
         return redirect('meus_imoveis') 
     # --- [FIM] LÓGICA DO PLANO GRÁTIS ---
 
-    # Se o preço não for 0, continua para o Mercado Pago...
     try:
         sdk = mercadopago.SDK(settings.MERCADOPAGO_ACCESS_TOKEN)
     except Exception as e:

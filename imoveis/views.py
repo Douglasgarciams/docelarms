@@ -3,9 +3,21 @@ from django.shortcuts import render, get_object_or_404
 from .models import Imovel, Cidade, Imobiliaria, Bairro
 from django.core.paginator import Paginator
 from django.http import JsonResponse
+from django.utils import timezone # <-- 1. IMPORTAÇÃO ADICIONADA
 
 def lista_imoveis(request):
-    imoveis_list = Imovel.objects.filter(status_publicacao='ATIVO').order_by('-destaque', '-data_cadastro')
+    
+    # --- [CORREÇÃO AQUI] ---
+    # 2. Pegamos a data/hora de agora
+    agora = timezone.now()
+    
+    # 3. Adicionamos o filtro para data_expiracao ser MAIOR QUE (gt) agora
+    imoveis_list = Imovel.objects.filter(
+        status_publicacao='ATIVO',
+        data_expiracao__gt=agora 
+    ).order_by('-destaque', '-data_cadastro')
+    # --- [FIM DA CORREÇÃO] ---
+
     
     cidades = Cidade.objects.all()
     imobiliarias = Imobiliaria.objects.all()
@@ -91,7 +103,20 @@ def lista_imoveis(request):
     return render(request, 'imoveis/lista_imoveis.html', contexto)
 
 def detalhe_imovel(request, id):
-    imovel = get_object_or_404(Imovel, id=id, status_publicacao='ATIVO')
+    
+    # --- [CORREÇÃO AQUI] ---
+    # 4. Pegamos a data/hora de agora
+    agora = timezone.now()
+    
+    # 5. Adicionamos o filtro para data_expiracao ser MAIOR QUE (gt) agora
+    imovel = get_object_or_404(
+        Imovel, 
+        id=id, 
+        status_publicacao='ATIVO',
+        data_expiracao__gt=agora
+    )
+    # --- [FIM DA CORREÇÃO] ---
+
     contexto = { 'imovel': imovel }
     return render(request, 'imoveis/detalhe_imovel.html', contexto)
 
