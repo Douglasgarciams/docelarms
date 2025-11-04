@@ -29,7 +29,7 @@
                                 <label class="form-label">Seu Plano</label>
                                 
                                 {% if assinatura %}
-                                    {% if assinatura.status == 'ATIVA' and assinatura.plano.is_ativo %}
+                                    {% if assinatura_ativa %}
                                         <input type="text" class="form-control" 
                                                value="{{ assinatura.plano.nome }} (Ativo)" 
                                                readonly 
@@ -137,7 +137,7 @@
                                 {{ form.fotos_galeria }}
                                 
                                 <div id="fotos-galeria-feedback" class="invalid-feedback" style="display: none;"></div>
-                                </div>
+                            </div>
                         </div>
 
                         {% if form.instance.pk and form.instance.fotos.all %}
@@ -175,77 +175,89 @@
         const cidadeSelect = document.querySelector('#id_cidade');
         const bairroSelect = document.querySelector('#id_bairro');
 
+        // Adiciona um "ouvinte" que dispara uma ação sempre que o campo de cidade mudar
         cidadeSelect.addEventListener('change', function() {
-            const cidadeId = this.value;
+            const cidadeId = this.value; // Pega o ID da cidade selecionada
+            
+            // Mostra uma mensagem de carregamento enquanto busca os bairros
             bairroSelect.innerHTML = '<option value="">Carregando...</option>';
 
+            // Se o usuário selecionar "Selecione a cidade", limpa a lista de bairros
             if (!cidadeId) {
                 bairroSelect.innerHTML = '<option value="">Selecione uma cidade primeiro</option>';
+                bairroSelect.disabled = true; // Desabilita o campo bairro
                 return;
             }
 
+            bairroSelect.disabled = false; // Habilita o campo bairro
+
+            // Faz a "pergunta" para o nosso assistente (API) no backend
             fetch(`/api/bairros/?cidade_id=${cidadeId}`)
-                .then(response => response.json())
+                .then(response => response.json()) // Converte a resposta em JSON
                 .then(data => {
+                    // Limpa a lista de bairros e adiciona a primeira opção
                     bairroSelect.innerHTML = '<option value="">Selecione o bairro</option>';
+                    
+                    // Para cada bairro recebido na resposta, cria uma nova opção e a adiciona na lista
                     data.forEach(function(bairro) {
                         const option = new Option(bairro.nome, bairro.id);
                         bairroSelect.add(option);
                     });
                 });
         });
+        
+        // Carga inicial: Se a cidade já estiver selecionada (ex: ao editar), desabilita os bairros
+        if (!cidadeSelect.value) {
+            bairroSelect.disabled = true;
+        }
+
         // --- Fim do Script de Cidades/Bairros ---
 
 
-        // === [2. NOVO SCRIPT DE VALIDAÇÃO DE FOTOS] ===
+        // === [2. SCRIPT DE VALIDAÇÃO DE FOTOS (CORRIGIDO)] ===
+                const limiteFotos = {{ assinatura.plano.limite_fotos|default_if_none:0 }};
         
-        // Pega o limite de fotos do plano do usuário (passado pela view)
-        // Se a assinatura ou o plano não existirem, usa 0 como segurança.
-        const limiteFotos = {{ assinatura.plano.limite_fotos|default_if_none:0 }};
+        // --- [INÍCIO DA CORREÇÃO] ---
+        // Só tentamos contar as fotos se o 'form.instance.pk' (ID do Imóvel) existir.
+        // Se for um anúncio NOVO, 'fotosAtuais' será 0.
+        let fotosAtuais = 0;
+        {% if form.instance.pk %}
+            fotosAtuais = {{ form.instance.fotos.all.count|default_if_none:0 }};
+        {% endif %}
+        // --- [FIM DA CORREÇÃO] ---
         
-        // Pega o número de fotos que já existem (para a página de EDIÇÃO)
-        // Se for a página de ANUNCIAR, 'form.instance.pk' não existe e isso será 0.
-        const fotosAtuais = {{ form.instance.fotos.all.count|default_if_none:0 }};
-        
-        // Pega os elementos do formulário
         const fotosInput = document.getElementById('id_fotos_galeria');
         const feedbackDiv = document.getElementById('fotos-galeria-feedback');
         const submitButton = document.querySelector('button[type="submit"]');
 
         if (fotosInput && limiteFotos > 0) {
-            // Adiciona um "ouvinte" que dispara quando o usuário seleciona os arquivos
             fotosInput.addEventListener('change', function(event) {
                 
-                // Quantidade de NOVOS arquivos que o usuário acabou de selecionar
                 const novasFotosCount = event.target.files.length;
-                
-                // Calcula o total
                 const totalFotos = fotosAtuais + novasFotosCount;
 
                 if (totalFotos > limiteFotos) {
-                    // --- ATIVA O ERRO ---
-                    // Monta a mensagem de erro
-                    feedbackDiv.textContent = `Limite excedido! Seu plano permite ${limiteFotos} fotos. Você já tem ${fotosAtuais} e selecionou mais ${novasFotosCount} (total: ${totalFotos}). Por favor, selecione menos fotos.`;
+                    // ATIVA O ERRO
+                    let mensagemErro = `Limite excedido! Seu plano permite ${limiteFotos} fotos.`;
+                    if (fotosAtuais > 0) {
+                        mensagemErro += ` Você já tem ${fotosAtuais} e selecionou mais ${novasFotosCount} (total: ${totalFotos}).`;
+                    } else {
+                        mensagemErro += ` Você selecionou ${novasFotosCount}.`;
+                    }
                     
-                    // Mostra a mensagem de erro e a deixa vermelha
+                    feedbackDiv.textContent = mensagemErro;
                     feedbackDiv.style.display = 'block';
                     fotosInput.classList.add('is-invalid');
-                    
-                    // Desabilita o botão de enviar para forçar o usuário a corrigir
                     submitButton.disabled = true;
                     
                 } else {
-                    // --- DESATIVA O ERRO ---
-                    // Esconde a mensagem
+                    // DESATIVA O ERRO
                     feedbackDiv.style.display = 'none';
                     fotosInput.classList.remove('is-invalid');
-                    
-                    // Reabilita o botão de enviar
                     submitButton.disabled = false;
                 }
             });
         }
-        // === [FIM DO NOVO SCRIPT] ===
     });
 </script>
 {% endblock %}
