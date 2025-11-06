@@ -1,38 +1,143 @@
 {% extends 'base.html' %}
 
-{% block title %}Crie sua Conta - DOCELARMS{% endblock %}
+{% block title %}Criar Sua Conta - DOCELARMS{% endblock %}
 
 {% block content %}
 <div class="container my-5">
     <div class="row justify-content-center">
-        <div class="col-lg-6">
+        <div class="col-lg-8 col-xl-7">
             <div class="card border-0 shadow-lg">
-                <div class="card-body p-5">
-                    <h2 class="card-title text-center fw-bold mb-4">Criar Sua Conta</h2>
-                    <form method="POST" novalidate>
+                <div class="card-body p-4 p-md-5">
+                    <h2 class="text-center fw-bold mb-4">Criar Sua Conta</h2>
+
+                    <form method="POST" action="{% url 'cadastro' %}" novalidate>
                         {% csrf_token %}
 
-                        {% for field in form %}
-                            <div class="mb-3">
-                                <label for="{{ field.id_for_label }}" class="form-label">{{ field.label }}</label>
-                                {{ field }}
-
-                                {% if field.help_text %}
-                                    <div class="form-text">
-                                        {{ field.help_text|safe }}
-                                    </div>
-                                {% endif %}
-
-                                {% for error in field.errors %}
-                                    <div class="invalid-feedback d-block">
-                                        {{ error }}
-                                    </div>
+                        {% if messages %}
+                            {% for message in messages %}
+                                <div class="alert alert-danger" role="alert">
+                                    {{ message }}
+                                </div>
+                            {% endfor %}
+                        {% endif %}
+                        
+                        <div class="mb-3">
+                            <label class="form-label">{{ user_form.tipo_conta.label }}</label>
+                            <div>
+                                {% for radio in user_form.tipo_conta %}
+                                <div class="form-check form-check-inline">
+                                    {{ radio.tag }}
+                                    <label class="form-check-label" for="{{ radio.id_for_label }}">{{ radio.choice_label }}</label>
+                                </div>
                                 {% endfor %}
                             </div>
-                        {% endfor %}
+                            {% for error in user_form.tipo_conta.errors %}
+                                <div class="invalid-feedback d-block">{{ error }}</div>
+                            {% endfor %}
+                        </div>
 
-                        <button type="submit" class="btn btn-primary btn-lg w-100 mt-3">Cadastrar-se</button>
+                        <hr>
+                        <h4 class="fw-bold mb-3">Seus Dados de Acesso</h4>
+
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label" for="{{ user_form.first_name.id_for_label }}">{{ user_form.first_name.label }}</label>
+                                {% for error in user_form.first_name.errors %}
+                                    <div class="invalid-feedback d-block">{{ error }}</div>
+                                {% endfor %}
+                                <input type="text" name="{{ user_form.first_name.name }}" class="form-control" id="{{ user_form.first_name.id_for_label }}" value="{{ user_form.first_name.value|default_if_none:'' }}">
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label" for="{{ user_form.last_name.id_for_label }}">{{ user_form.last_name.label }}</label>
+                                {% for error in user_form.last_name.errors %}
+                                    <div class="invalid-feedback d-block">{{ error }}</div>
+                                {% endfor %}
+                                <input type="text" name="{{ user_form.last_name.name }}" class="form-control" id="{{ user_form.last_name.id_for_label }}" value="{{ user_form.last_name.value|default_if_none:'' }}">
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label" for="{{ user_form.email.id_for_label }}">{{ user_form.email.label }}</label>
+                            {% for error in user_form.email.errors %}
+                                <div class="invalid-feedback d-block">{{ error }}</div>
+                            {% endfor %}
+                            <input type="email" name="{{ user_form.email.name }}" class="form-control" id="{{ user_form.email.id_for_label }}" value="{{ user_form.email.value|default_if_none:'' }}">
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label" for="{{ user_form.username.id_for_label }}">{{ user_form.username.label }}</label>
+                            {% for error in user_form.username.errors %}
+                                <div class="invalid-feedback d-block">{{ error }}</div>
+                            {% endfor %}
+                            <input type="text" name="{{ user_form.username.name }}" class="form-control" id="{{ user_form.username.id_for_label }}" value="{{ user_form.username.value|default_if_none:'' }}">
+                            <div class="form-text">{{ user_form.username.help_text }}</div>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label" for="{{ user_form.password1.id_for_label }}">Senha</label>
+                                {% for error in user_form.password1.errors %}
+                                    <div class="invalid-feedback d-block">{{ error }}</div>
+                                {% endfor %}
+                                <input type="password" name="{{ user_form.password1.name }}" class="form-control" id="{{ user_form.password1.id_for_label }}">
+                                <div class="form-text">{{ user_form.password1.help_text|safe }}</div>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label" for="{{ user_form.password2.id_for_label }}">Confirmação da senha</label>
+                                {% for error in user_form.password2.errors %}
+                                    <div class="invalid-feedback d-block">{{ error }}</div>
+                                {% endfor %}
+                                <input type="password" name="{{ user_form.password2.name }}" class="form-control" id="{{ user_form.password2.id_for_label }}">
+                            </div>
+                        </div>
+                        <div id="campos_imobiliaria" style="display: none;">
+                            <hr class="my-4">
+                            <h4 class="fw-bold mb-3">Dados da Imobiliária / Corretor</h4>
+                            
+                            <div class="mb-3">
+                                <label class="form-label">{{ imobiliaria_form.nome.label }}</label>
+                                {% for error in imobiliaria_form.nome.errors %}<div class="invalid-feedback d-block">{{ error }}</div>{% endfor %}
+                                {{ imobiliaria_form.nome }}
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">{{ imobiliaria_form.endereco.label }}</label>
+                                {% for error in imobiliaria_form.endereco.errors %}<div class="invalid-feedback d-block">{{ error }}</div>{% endfor %}
+                                {{ imobiliaria_form.endereco }}
+                            </div>
+                            <div class="row">
+                                <div class="col-md-6 mb-3">
+                                    <label class="form-label">{{ imobiliaria_form.cidade.label }}</label>
+                                    {% for error in imobiliaria_form.cidade.errors %}<div class="invalid-feedback d-block">{{ error }}</div>{% endfor %}
+                                    {{ imobiliaria_form.cidade }}
+                                </div>
+                                <div class="col-md-6 mb-3">
+                                    <label class="form-label">{{ imobiliaria_form.telefone.label }}</label>
+                                    {% for error in imobiliaria_form.telefone.errors %}<div class="invalid-feedback d-block">{{ error }}</div>{% endfor %}
+                                    {{ imobiliaria_form.telefone }}
+                                </div>
+                            </div>
+                            <div class="row">
+                                <div class="col-md-6 mb-3">
+                                    <label class="form-label">{{ imobiliaria_form.telefone_secundario.label }}</label>
+                                    {% for error in imobiliaria_form.telefone_secundario.errors %}<div class="invalid-feedback d-block">{{ error }}</div>{% endfor %}
+                                    {{ imobiliaria_form.telefone_secundario }}
+                                </div>
+                                <div class="col-md-6 mb-3">
+                                    <label class="form-label">{{ imobiliaria_form.site.label }}</label>
+                                    {% for error in imobiliaria_form.site.errors %}<div class="invalid-feedback d-block">{{ error }}</div>{% endfor %}
+                                    {{ imobiliaria_form.site }}
+                                </div>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">{{ imobiliaria_form.rede_social.label }}</label>
+                                {% for error in imobiliaria_form.rede_social.errors %}<div class="invalid-feedback d-block">{{ error }}</div>{% endfor %}
+                                {{ imobiliaria_form.rede_social }}
+                            </div>
+                        </div>
+
+                        <button type="submit" class="btn btn-primary btn-lg w-100 mt-4">Cadastrar-se</button>
                     </form>
+                    
                     <div class="text-center mt-3">
                         <small>Já tem uma conta? <a href="{% url 'login' %}">Faça o login</a></small>
                     </div>
@@ -41,12 +146,34 @@
         </div>
     </div>
 </div>
+{% endblock %}
 
+{% block extra_js %}
 <script>
     document.addEventListener('DOMContentLoaded', function() {
-        document.querySelectorAll('form input').forEach(function(input) {
-            if (input.type !== 'checkbox') {
-                input.classList.add('form-control');
+        // Pega os botões de rádio
+        const radios = document.querySelectorAll('input[name="tipo_conta"]');
+        // Pega o 'bloco' de campos da imobiliária
+        const camposImobiliaria = document.getElementById('campos_imobiliaria');
+        
+        // Função para mostrar ou esconder o bloco
+        function toggleCampos(tipo) {
+            if (tipo === 'IMOBILIARIA') {
+                camposImobiliaria.style.display = 'block';
+            } else {
+                camposImobiliaria.style.display = 'none';
+            }
+        }
+
+        // Adiciona o "ouvinte" em cada botão de rádio
+        radios.forEach(function(radio) {
+            radio.addEventListener('change', function(event) {
+                toggleCampos(event.target.value);
+            });
+
+            // Verifica o estado inicial (em caso de recarregar a página com erro)
+            if (radio.checked) {
+                toggleCampos(radio.value);
             }
         });
     });

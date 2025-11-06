@@ -1,12 +1,11 @@
 # imoveis/models.py
 
 from django.db import models
-# from django.contrib.auth.models import User  <- Removido
-from django.conf import settings # <- Importado
-from django.utils import timezone # <- Importado
+from django.conf import settings 
+from django.utils import timezone
 
 # -----------------------------------------------------------------
-# MODELOS 'Cidade', 'Bairro', 'Imobiliaria' (Sem mudanças)
+# MODELOS 'Cidade', 'Bairro' (Sem mudanças)
 # -----------------------------------------------------------------
 class Cidade(models.Model):
     nome = models.CharField(max_length=100)
@@ -20,20 +19,40 @@ class Bairro(models.Model):
     def __str__(self): return f"{self.nome} ({self.cidade.nome})"
     class Meta: ordering = ['nome']; unique_together = ('cidade', 'nome')
 
+# -----------------------------------------------------------------
+# MODELO 'Imobiliaria' (ATUALIZADO)
+# -----------------------------------------------------------------
 class Imobiliaria(models.Model):
+    
+    # --- [CAMPO DE VÍNCULO] ---
+    # Liga o perfil da Imobiliária à conta do Usuário
+    usuario = models.OneToOneField(
+        settings.AUTH_USER_MODEL, 
+        on_delete=models.CASCADE, 
+        related_name='imobiliaria_profile', 
+        null=True, 
+        blank=True
+    )
+    # ---------------------------
+
     nome = models.CharField(max_length=150)
+    
+    # --- [CAMPO REMOVIDO] ---
+    # creci = ... (Removido conforme sua solicitação)
+    # ---------------------------
+
     endereco = models.CharField(max_length=255, null=True, blank=True, verbose_name="Endereço")
     cidade = models.ForeignKey(Cidade, on_delete=models.SET_NULL, null=True, blank=True, verbose_name="Cidade")
     telefone = models.CharField(max_length=20, null=True, blank=True, verbose_name="Telefone Principal")
     telefone_secundario = models.CharField(max_length=20, null=True, blank=True, verbose_name="Telefone Secundário (ex: WhatsApp)")
     site = models.URLField(max_length=200, null=True, blank=True, verbose_name="Site")
     rede_social = models.URLField(max_length=200, null=True, blank=True, verbose_name="Rede Social")
+    
     def __str__(self): return self.nome
     class Meta: ordering = ['nome']; verbose_name_plural = "Imobiliárias"
 
 # -----------------------------------------------------------------
-# MODELO: PLANO (Atualizado)
-# Adicionado 'limite_anuncios' e 'is_ativo'
+# MODELO: PLANO (Sem mudanças)
 # -----------------------------------------------------------------
 class Plano(models.Model):
     nome = models.CharField(max_length=100, verbose_name="Nome do Plano")
@@ -55,14 +74,11 @@ class Plano(models.Model):
         verbose_name="Limite de Anúncios",
         help_text="Número máximo de anúncios ATIVOS que o usuário pode ter com este plano (ex: 1, 5)"
     )
-    
-    # --- [CAMPO ADICIONADO (Para Ativar/Desativar)] ---
     is_ativo = models.BooleanField(
         default=True,
         verbose_name="Plano Ativo?",
         help_text="Se marcado, o plano aparecerá na página 'Planos e Preços' para contratação."
     )
-    # ---------------------------
 
     def __str__(self):
         return f"{self.nome} (R$ {self.preco} / {self.duracao_dias} dias)"
@@ -72,8 +88,7 @@ class Plano(models.Model):
         verbose_name_plural = "Planos"
 
 # -----------------------------------------------------------------
-# MODELO: ASSINATURA (Atualizado)
-# Adicionado 'null=True' ao usuário para facilitar migrações
+# MODELO: ASSINATURA (Sem mudanças)
 # -----------------------------------------------------------------
 class Assinatura(models.Model):
     class StatusAssinatura(models.TextChoices):
@@ -86,7 +101,7 @@ class Assinatura(models.Model):
         settings.AUTH_USER_MODEL, 
         on_delete=models.CASCADE, 
         related_name="assinatura",
-        null=True # Permite usuários existentes sem assinatura
+        null=True 
     )
     plano = models.ForeignKey(Plano, on_delete=models.SET_NULL, null=True, verbose_name="Plano")
     status = models.CharField(
@@ -105,7 +120,7 @@ class Assinatura(models.Model):
         verbose_name_plural = "Assinaturas de Usuários"
 
 # -----------------------------------------------------------------
-# MODELO 'Imovel' (Atualizado)
+# MODELO 'Imovel' (Sem mudanças)
 # -----------------------------------------------------------------
 class Imovel(models.Model):
     
@@ -151,7 +166,10 @@ class Imovel(models.Model):
     status_publicacao = models.CharField(
         max_length=20,
         choices=StatusPublicacao.choices,
+        # --- [LINHA CORRIGIDA] ---
+        # Troquei 'StatusPublica' por 'StatusPublicacao'
         default=StatusPublicacao.PENDENTE_APROVACAO,
+        # -------------------------
         verbose_name="Status da Publicação"
     )
     data_aprovacao = models.DateTimeField(null=True, blank=True, verbose_name="Data de Aprovação")

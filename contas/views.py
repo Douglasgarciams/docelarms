@@ -3,8 +3,9 @@ from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from .forms import CustomUserCreationForm, UserUpdateForm, CustomPasswordChangeForm
+# 1. IMPORTAMOS O NOVO FORMULÁRIO DE IMOBILIÁRIA
 from imoveis.models import Imovel, Foto, Plano, Assinatura 
-from imoveis.forms import ImovelForm
+from imoveis.forms import ImovelForm, ImobiliariaForm # <--- IMPORTADO AQUI
 from django.contrib.auth import update_session_auth_hash
 import traceback 
 import os 
@@ -139,22 +140,62 @@ def upload_to_b2(file_obj, object_name):
         traceback.print_exc()
         return False
         
-# --- View de Cadastro (Original - Sem mudanças) ---
+# --- [VIEW DE CADASTRO ATUALIZADA] ---
 def cadastro(request):
     if request.method == 'POST':
-        form = CustomUserCreationForm(request.POST)
-        if form.is_valid():
-            user = form.save(commit=False)
-            user.first_name = form.cleaned_data['first_name']
-            user.last_name = form.cleaned_data['last_name']
-            user.email = form.cleaned_data['email']
-            user.save()
-            username = form.cleaned_data.get('username')
-            messages.success(request, f'Conta criada com sucesso para {username}! Você já pode fazer o login.')
-            return redirect('login')
-    else:
-        form = CustomUserCreationForm()
-    return render(request, 'contas/cadastro.html', {'form': form})
+        # 1. Instanciamos os dois formulários com os dados do POST
+        user_form = CustomUserCreationForm(request.POST)
+        imobiliaria_form = ImobiliariaForm(request.POST)
+        
+        tipo_conta = request.POST.get('tipo_conta')
+
+        if tipo_conta == 'PARTICULAR':
+            # 2. Se for Particular, só validamos o user_form
+            if user_form.is_valid():
+                user_form.save()
+                messages.success(request, 'Conta particular criada com sucesso! Você já pode fazer o login.')
+                return redirect('login')
+            # Se não for válido, o código continua e renderiza o template com os erros
+
+        elif tipo_conta == 'IMOBILIARIA':
+            # 3. Se for Imobiliária, validamos AMBOS
+            user_valid = user_form.is_valid()
+            imobiliaria_valid = imobiliaria_form.is_valid()
+
+            if user_valid and imobiliaria_valid:
+                # 4. Salvamos o usuário primeiro
+                user = user_form.save()
+                
+                # 5. Salvamos a imobiliária, mas "pausamos" (commit=False)
+                imobiliaria = imobiliaria_form.save(commit=False)
+                
+                # 6. LIGAMOS a imobiliária ao usuário que acabamos de criar
+                imobiliaria.usuario = user 
+                
+                # 7. Agora sim salvamos a imobiliária no banco
+                imobiliaria.save()
+                
+                messages.success(request, 'Conta de imobiliária criada com sucesso! Você já pode fazer o login.')
+                return redirect('login')
+            # Se não for válido, o código continua e renderiza com os erros
+        
+        else:
+            # Caso o 'tipo_conta' não seja enviado (ex: manipulação maliciosa)
+            messages.error(request, 'Por favor, selecione um tipo de conta.')
+
+    else: # Se for um GET (primeira vez na página)
+        # 8. Criamos os dois formulários vazios
+        user_form = CustomUserCreationForm()
+        imobiliaria_form = ImobiliariaForm()
+
+    # 9. Enviamos AMBOS os formulários para o template
+    contexto = {
+        'user_form': user_form,
+        'imobiliaria_form': imobiliaria_form
+    }
+    return render(request, 'contas/cadastro.html', contexto)
+# --- [FIM DA VIEW DE CADASTRO] ---
+
 
 # --- View do Dashboard "Meus Imóveis" (ATUALIZADA COM VERIFICAÇÃO DE EXPIRAÇÃO) ---
 @login_required
@@ -163,20 +204,16 @@ def meus_imoveis(request):
     agora = timezone.now()
 
     # --- [INÍCIO DA CORREÇÃO - O "VIGIA"] ---
-    # 1. Tenta verificar a assinatura do usuário
     try:
         assinatura = request.user.assinatura
         
-        # 2. Se a assinatura está 'ATIVA' mas a data de expiração já passou...
         if assinatura.status == 'ATIVA' and assinatura.data_expiracao and assinatura.data_expiracao < agora:
             
             print(f"Assinatura (ID: {assinatura.id}) do usuário {request.user.username} expirou. Atualizando status...")
             
-            # 3. Muda o status da ASSINATURA para 'EXPIRADA'
             assinatura.status = Assinatura.StatusAssinatura.EXPIRADA
             assinatura.save(update_fields=['status'])
             
-            # 4. Muda o status de todos os IMÓVEIS ATIVOS dele para 'EXPIRADO'
             Imovel.objects.filter(
                 proprietario=request.user,
                 status_publicacao='ATIVO'
@@ -185,13 +222,11 @@ def meus_imoveis(request):
             print("Imóveis ativos do usuário foram atualizados para 'Expirado'.")
             
     except Assinatura.DoesNotExist:
-        pass # Sem assinatura, não faz nada
+        pass 
     except Exception as e:
-        # Proteção para não quebrar a página se algo der errado na verificação
         print(f"Erro ao verificar expiração de assinatura: {e}")
     # --- [FIM DA CORREÇÃO] ---
 
-    # Agora, a query de imóveis vai buscar os status ATUALIZADOS do banco
     imoveis_do_usuario = Imovel.objects.filter(proprietario=request.user).order_by('-data_cadastro')
     
     contexto = {
@@ -275,19 +310,28 @@ def anunciar_imovel(request):
                 imovel.proprietario = request.user
                 imovel.foto_principal = None 
                 
+                # --- [INÍCIO] LÓGICA DE VINCULAR IMOBILIÁRIA ---
+                try:
+                    # Verifica se o usuário logado TEM um perfil de imobiliária
+                    imobiliaria_do_usuario = request.user.imobiliaria_profile
+                    # Se sim, define este imóvel como sendo dessa imobiliária
+                    imovel.imobiliaria = imobiliaria_do_usuario
+                    print(f"Usuário é uma imobiliária. Vinculando ao perfil: {imobiliaria_do_usuario.nome}")
+                except AttributeError:
+                    # Se 'imobiliaria_profile' não existir, é um usuário particular.
+                    # O campo 'imobiliaria' do imóvel ficará None (correto).
+                    print("Usuário é particular. Não vinculando a imobiliária.")
+                # --- [FIM] DA LÓGICA ---
+                
+                
                 # --- [INÍCIO DA CORREÇÃO - AUTO-APROVAÇÃO GRÁTIS] ---
-                # Verificamos se a assinatura é válida E se o preço do plano é 0
                 if assinatura_valida_para_postar and assinatura_usuario.plano.preco == 0:
                     print("Plano Grátis Ativo detectado! Auto-aprovando o imóvel.")
                     
-                    # Define o status como ATIVO
                     imovel.status_publicacao = Imovel.StatusPublicacao.ATIVO
-                    # Define a data de aprovação
                     imovel.data_aprovacao = timezone.now()
-                    # Define a data de expiração do IMÓVEL (baseada na assinatura)
                     imovel.data_expiracao = assinatura_usuario.data_expiracao
                 
-                # Se não for grátis, ele será salvo com o status PENDENTE (default do modelo)
                 # --- [FIM DA CORREÇÃO] ---
 
                 print("Salvando dados do imóvel...")
@@ -329,12 +373,10 @@ def anunciar_imovel(request):
 
                 if upload_principal_success:
                     
-                    # --- [CORREÇÃO MENSAGEM DE SUCESSO] ---
                     if imovel.status_publicacao == 'ATIVO':
                         messages.success(request, 'Seu imóvel foi publicado com sucesso!')
                     else:
                         messages.success(request, 'Seu imóvel foi enviado para análise! Ele aparecerá no site assim que o conteúdo for aprovado.')
-                    # --- [FIM DA CORREÇÃO] ---
                     
                     print("Redirecionando para meus_imoveis...") 
                     return redirect('meus_imoveis')
@@ -385,14 +427,12 @@ def editar_imovel(request, imovel_id):
     try:
         assinatura_usuario = request.user.assinatura
         
-        # --- [CORREÇÃO AQUI] ---
         plano_esta_ativo = assinatura_usuario.plano and assinatura_usuario.plano.is_ativo
         assinatura_esta_ativa = assinatura_usuario.status == 'ATIVA'
         assinatura_nao_expirou = assinatura_usuario.data_expiracao and assinatura_usuario.data_expiracao > agora
 
         if plano_esta_ativo and assinatura_esta_ativa and assinatura_nao_expirou:
             assinatura_valida_para_postar = True
-        # --- [FIM DA CORREÇÃO] ---
             
     except Assinatura.DoesNotExist:
         pass
@@ -433,6 +473,17 @@ def editar_imovel(request, imovel_id):
             try:
                 limpar_foto_principal = foto_principal_obj is False 
                 imovel_atualizado = form.save(commit=False)
+                
+                # --- [INÍCIO] LÓGICA DE VINCULAR IMOBILIÁRIA (EDITAR) ---
+                try:
+                    # Verifica se o usuário logado TEM um perfil de imobiliária
+                    imobiliaria_do_usuario = request.user.imobiliaria_profile
+                    imovel_atualizado.imobiliaria = imobiliaria_do_usuario
+                except AttributeError:
+                    # É um usuário particular, garante que o campo está vazio
+                    imovel_atualizado.imobiliaria = None
+                # --- [FIM] DA LÓGICA ---
+                
                 foto_antiga = imovel.foto_principal.name if imovel.foto_principal else None
 
                 if limpar_foto_principal or (foto_principal_obj and isinstance(foto_principal_obj, InMemoryUploadedFile)):
@@ -634,7 +685,7 @@ def criar_pagamento(request, plano_id):
     referencia_externa = f"assinatura_{assinatura.id}_usuario_{request.user.id}"
     print(f"Gerando preferência com external_reference: {referencia_externa}")
 
-    base_url = "https://www.seudominio.com" 
+    base_url = "https...com" # Substitua pelo seu domínio real
 
     preference_data = {
         "items": [

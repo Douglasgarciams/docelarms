@@ -9,8 +9,8 @@
     <div class="row justify-content-center">
         <div class="col-lg-10">
             <div class="card border-0 shadow-lg">
-                <div class="card-body p-5">
-                    <h2 class="card-title text-center fw-bold mb-4">
+                <div class="card-body p-4 p-md-5">
+                    <h2 class="text-center fw-bold mb-4">
                         {% if form.instance.pk %}Editar Anúncio{% else %}Anunciar Novo Imóvel{% endif %}
                     </h2>
 
@@ -54,15 +54,22 @@
                                            style="background-color: #e9ecef; font-weight: bold; color: red;">
                                 {% endif %}
                             </div>
+
                             <div class="col-md-4">
                                 <label class="form-label">{{ form.finalidade.label }}</label>
                                 {{ form.finalidade }}
                             </div>
-                            <div class="col-md-4">
-                                <label class="form-label">{{ form.imobiliaria.label }}</label>
-                                {{ form.imobiliaria }}
-                            </div>
-
+                            
+                            {% if user.imobiliaria_profile %}
+                                <div class="col-md-4">
+                                    <label class="form-label">Imobiliária/Anunciante</label>
+                                    <input type="text" class="form-control" 
+                                           value="{{ user.imobiliaria_profile.nome }}" 
+                                           readonly 
+                                           style="background-color: #e9ecef; font-weight: bold;">
+                                </div>
+                            {% else %}
+                                {% endif %}
                             <div class="col-md-4">
                                 <label class="form-label">{{ form.cidade.label }}</label>
                                 {{ form.cidade }}
@@ -214,17 +221,14 @@
         // --- Fim do Script de Cidades/Bairros ---
 
 
-        // === [2. SCRIPT DE VALIDAÇÃO DE FOTOS (CORRIGIDO)] ===
-                const limiteFotos = {{ assinatura.plano.limite_fotos|default_if_none:0 }};
+        // === [2. SCRIPT DE VALIDAÇÃO DE FOTOS (Sem mudanças)] ===
         
-        // --- [INÍCIO DA CORREÇÃO] ---
-        // Só tentamos contar as fotos se o 'form.instance.pk' (ID do Imóvel) existir.
-        // Se for um anúncio NOVO, 'fotosAtuais' será 0.
+        const limiteFotos = {{ assinatura.plano.limite_fotos|default_if_none:0 }};
+        
         let fotosAtuais = 0;
         {% if form.instance.pk %}
             fotosAtuais = {{ form.instance.fotos.all.count|default_if_none:0 }};
         {% endif %}
-        // --- [FIM DA CORREÇÃO] ---
         
         const fotosInput = document.getElementById('id_fotos_galeria');
         const feedbackDiv = document.getElementById('fotos-galeria-feedback');
