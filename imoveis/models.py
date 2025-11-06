@@ -120,7 +120,7 @@ class Assinatura(models.Model):
         verbose_name_plural = "Assinaturas de Usuários"
 
 # -----------------------------------------------------------------
-# MODELO 'Imovel' (Sem mudanças)
+# MODELO 'Imovel' (MODIFICADO)
 # -----------------------------------------------------------------
 class Imovel(models.Model):
     
@@ -166,14 +166,15 @@ class Imovel(models.Model):
     status_publicacao = models.CharField(
         max_length=20,
         choices=StatusPublicacao.choices,
-        # --- [LINHA CORRIGIDA] ---
-        # Troquei 'StatusPublica' por 'StatusPublicacao'
         default=StatusPublicacao.PENDENTE_APROVACAO,
-        # -------------------------
         verbose_name="Status da Publicação"
     )
     data_aprovacao = models.DateTimeField(null=True, blank=True, verbose_name="Data de Aprovação")
     data_expiracao = models.DateTimeField(null=True, blank=True, verbose_name="Data de Expiração")
+
+    # --- [CAMPO ADICIONADO] ---
+    visualizacoes = models.PositiveIntegerField(default=0, verbose_name="Visualizações")
+    # ---------------------------
 
     def __str__(self):
         if self.titulo:

@@ -2,6 +2,8 @@
 from django.shortcuts import render, get_object_or_404
 # 1. IMPORTAMOS OS MODELOS 'Assinatura' e 'Imovel' COMPLETOS
 from .models import Imovel, Cidade, Imobiliaria, Bairro, Assinatura, Plano 
+# 2. IMPORTAMOS O 'F' PARA FAZER A CONTAGEM SEGURA
+from django.db.models import F
 from django.core.paginator import Paginator
 from django.http import JsonResponse
 from django.utils import timezone # Importação já existe
@@ -129,11 +131,36 @@ def detalhe_imovel(request, id):
         data_expiracao__gt=agora
     )
 
+    # --- [INÍCIO] LÓGICA DO CONTADOR DE VISITAS ---
+    
+    # 1. Pega a lista de IDs de imóveis já vistos nesta sessão
+    viewed_imoveis = request.session.get('viewed_imoveis', [])
+    
+    # 2. Verifica se o ID deste imóvel AINDA NÃO ESTÁ na lista
+    if imovel.id not in viewed_imoveis:
+        print(f"Primeira visita ao imóvel {imovel.id} nesta sessão. Contando.")
+        
+        # 3. Incrementa o contador no banco de dados (de forma segura, evitando 'race condition')
+        imovel.visualizacoes = F('visualizacoes') + 1
+        imovel.save(update_fields=['visualizacoes'])
+        
+        # 4. Adiciona o ID deste imóvel à lista da sessão
+        viewed_imoveis.append(imovel.id)
+        request.session['viewed_imoveis'] = viewed_imoveis
+        
+        # 5. Atualiza o objeto para mostrar o novo número imediatamente
+        imovel.refresh_from_db()
+    else:
+        print(f"Imóvel {imovel.id} já foi visto nesta sessão. Não contando.")
+    
+    # --- [FIM] DA LÓGICA ---
+
     contexto = { 'imovel': imovel }
     return render(request, 'imoveis/detalhe_imovel.html', contexto)
 
 # --- VIEW "ASSISTENTE" ---
 def get_bairros(request):
+    # As linhas abaixo precisam estar indentadas
     cidade_id = request.GET.get('cidade_id')
     bairros = Bairro.objects.filter(cidade_id=cidade_id).order_by('nome')
     return JsonResponse(list(bairros.values('id', 'nome')), safe=False)
