@@ -156,15 +156,42 @@ def cadastro(request):
         form = CustomUserCreationForm()
     return render(request, 'contas/cadastro.html', {'form': form})
 
-# --- View do Dashboard "Meus Imóveis" (VIGIA REMOVIDO) ---
+# --- View do Dashboard "Meus Imóveis" (ATUALIZADA COM VERIFICAÇÃO DE EXPIRAÇÃO) ---
 @login_required
 def meus_imoveis(request):
     
-    # O "Vigia" foi movido para a view pública 'lista_imoveis'
-    # para garantir que TODOS os anúncios sejam verificados,
-    # não apenas os do usuário logado.
+    agora = timezone.now()
 
-    # A query agora busca os imóveis com o status atualizado pelo "vigia"
+    # --- [INÍCIO DA CORREÇÃO - O "VIGIA"] ---
+    # 1. Tenta verificar a assinatura do usuário
+    try:
+        assinatura = request.user.assinatura
+        
+        # 2. Se a assinatura está 'ATIVA' mas a data de expiração já passou...
+        if assinatura.status == 'ATIVA' and assinatura.data_expiracao and assinatura.data_expiracao < agora:
+            
+            print(f"Assinatura (ID: {assinatura.id}) do usuário {request.user.username} expirou. Atualizando status...")
+            
+            # 3. Muda o status da ASSINATURA para 'EXPIRADA'
+            assinatura.status = Assinatura.StatusAssinatura.EXPIRADA
+            assinatura.save(update_fields=['status'])
+            
+            # 4. Muda o status de todos os IMÓVEIS ATIVOS dele para 'EXPIRADO'
+            Imovel.objects.filter(
+                proprietario=request.user,
+                status_publicacao='ATIVO'
+            ).update(status_publicacao=Imovel.StatusPublicacao.EXPIRADO)
+            
+            print("Imóveis ativos do usuário foram atualizados para 'Expirado'.")
+            
+    except Assinatura.DoesNotExist:
+        pass # Sem assinatura, não faz nada
+    except Exception as e:
+        # Proteção para não quebrar a página se algo der errado na verificação
+        print(f"Erro ao verificar expiração de assinatura: {e}")
+    # --- [FIM DA CORREÇÃO] ---
+
+    # Agora, a query de imóveis vai buscar os status ATUALIZADOS do banco
     imoveis_do_usuario = Imovel.objects.filter(proprietario=request.user).order_by('-data_cadastro')
     
     contexto = {
@@ -180,20 +207,18 @@ def anunciar_imovel(request):
 
     # --- [LÓGICA DE ASSINATURA ATUALIZADA] ---
     assinatura_usuario = None 
-    assinatura_valida_para_postar = False
+    assinatura_valida_para_postar = False 
     agora = timezone.now()
     
     try:
         assinatura_usuario = request.user.assinatura
         
-        # --- [CORREÇÃO AQUI] ---
         plano_esta_ativo = assinatura_usuario.plano and assinatura_usuario.plano.is_ativo
         assinatura_esta_ativa = assinatura_usuario.status == 'ATIVA'
         assinatura_nao_expirou = assinatura_usuario.data_expiracao and assinatura_usuario.data_expiracao > agora
 
         if plano_esta_ativo and assinatura_esta_ativa and assinatura_nao_expirou:
             assinatura_valida_para_postar = True
-        # --- [FIM DA CORREÇÃO] ---
             
     except Assinatura.DoesNotExist:
         pass 
@@ -221,7 +246,7 @@ def anunciar_imovel(request):
             
             print(f"Plano: {assinatura_usuario.plano.nome}, Limite Anúncios: {limite_anuncios}, Anúncios Existentes: {anuncios_existentes_count}")
 
-            # 5. APLICAR REGRA DE ANÚNCIO! (Só permite se a assinatura for válida)
+            # 5. APLICAR REGRA DE ANÚNCIO!
             if not assinatura_valida_para_postar and anuncios_existentes_count >= limite_anuncios:
                 messages.error(request, f"Erro: Seu plano ({assinatura_usuario.plano.nome}) não está ativo ou expirou. Você não pode postar novos anúncios.")
                 return redirect('meus_imoveis') 
@@ -249,9 +274,25 @@ def anunciar_imovel(request):
                 imovel = form.save(commit=False)
                 imovel.proprietario = request.user
                 imovel.foto_principal = None 
+                
+                # --- [INÍCIO DA CORREÇÃO - AUTO-APROVAÇÃO GRÁTIS] ---
+                # Verificamos se a assinatura é válida E se o preço do plano é 0
+                if assinatura_valida_para_postar and assinatura_usuario.plano.preco == 0:
+                    print("Plano Grátis Ativo detectado! Auto-aprovando o imóvel.")
+                    
+                    # Define o status como ATIVO
+                    imovel.status_publicacao = Imovel.StatusPublicacao.ATIVO
+                    # Define a data de aprovação
+                    imovel.data_aprovacao = timezone.now()
+                    # Define a data de expiração do IMÓVEL (baseada na assinatura)
+                    imovel.data_expiracao = assinatura_usuario.data_expiracao
+                
+                # Se não for grátis, ele será salvo com o status PENDENTE (default do modelo)
+                # --- [FIM DA CORREÇÃO] ---
+
                 print("Salvando dados do imóvel...")
                 imovel.save() 
-                print(f"Imóvel salvo (sem foto) ID: {imovel.id}")
+                print(f"Imóvel salvo (sem foto) ID: {imovel.id}, Status: {imovel.status_publicacao}")
 
                 upload_principal_success = True
                 if foto_principal_obj and isinstance(foto_principal_obj, InMemoryUploadedFile):
@@ -287,7 +328,14 @@ def anunciar_imovel(request):
                                 messages.warning(request, f'Falha ao fazer upload da foto da galeria: {original_filename}')
 
                 if upload_principal_success:
-                    messages.success(request, 'Seu imóvel foi enviado para análise! Ele aparecerá no site assim que o pagamento e o conteúdo forem aprovados.')
+                    
+                    # --- [CORREÇÃO MENSAGEM DE SUCESSO] ---
+                    if imovel.status_publicacao == 'ATIVO':
+                        messages.success(request, 'Seu imóvel foi publicado com sucesso!')
+                    else:
+                        messages.success(request, 'Seu imóvel foi enviado para análise! Ele aparecerá no site assim que o conteúdo for aprovado.')
+                    # --- [FIM DA CORREÇÃO] ---
+                    
                     print("Redirecionando para meus_imoveis...") 
                     return redirect('meus_imoveis')
 
