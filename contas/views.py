@@ -156,42 +156,15 @@ def cadastro(request):
         form = CustomUserCreationForm()
     return render(request, 'contas/cadastro.html', {'form': form})
 
-# --- View do Dashboard "Meus Imóveis" (ATUALIZADA COM VERIFICAÇÃO DE EXPIRAÇÃO) ---
+# --- View do Dashboard "Meus Imóveis" (VIGIA REMOVIDO) ---
 @login_required
 def meus_imoveis(request):
     
-    agora = timezone.now()
+    # O "Vigia" foi movido para a view pública 'lista_imoveis'
+    # para garantir que TODOS os anúncios sejam verificados,
+    # não apenas os do usuário logado.
 
-    # --- [INÍCIO DA CORREÇÃO - O "VIGIA"] ---
-    # 1. Tenta verificar a assinatura do usuário
-    try:
-        assinatura = request.user.assinatura
-        
-        # 2. Se a assinatura está 'ATIVA' mas a data de expiração já passou...
-        if assinatura.status == 'ATIVA' and assinatura.data_expiracao and assinatura.data_expiracao < agora:
-            
-            print(f"Assinatura (ID: {assinatura.id}) do usuário {request.user.username} expirou. Atualizando status...")
-            
-            # 3. Muda o status da ASSINATURA para 'EXPIRADA'
-            assinatura.status = Assinatura.StatusAssinatura.EXPIRADA
-            assinatura.save(update_fields=['status'])
-            
-            # 4. Muda o status de todos os IMÓVEIS ATIVOS dele para 'EXPIRADO'
-            Imovel.objects.filter(
-                proprietario=request.user,
-                status_publicacao='ATIVO'
-            ).update(status_publicacao=Imovel.StatusPublicacao.EXPIRADO)
-            
-            print("Imóveis ativos do usuário foram atualizados para 'Expirado'.")
-            
-    except Assinatura.DoesNotExist:
-        pass # Sem assinatura, não faz nada
-    except Exception as e:
-        # Proteção para não quebrar a página se algo der errado na verificação
-        print(f"Erro ao verificar expiração de assinatura: {e}")
-    # --- [FIM DA CORREÇÃO] ---
-
-    # Agora, a query de imóveis vai buscar os status ATUALIZADOS do banco
+    # A query agora busca os imóveis com o status atualizado pelo "vigia"
     imoveis_do_usuario = Imovel.objects.filter(proprietario=request.user).order_by('-data_cadastro')
     
     contexto = {
@@ -206,21 +179,16 @@ def anunciar_imovel(request):
     print(f"Método da Requisição: {request.method}")
 
     # --- [LÓGICA DE ASSINATURA ATUALIZADA] ---
-    assinatura_usuario = None # Começa como 'Nenhuma'
-    assinatura_valida_para_postar = False # Começa como 'Não'
-    agora = timezone.now() # Pega a hora atual
+    assinatura_usuario = None 
+    assinatura_valida_para_postar = False
+    agora = timezone.now()
     
     try:
         assinatura_usuario = request.user.assinatura
         
         # --- [CORREÇÃO AQUI] ---
-        # 1. Verifica se o plano dela está ativo (visível)
         plano_esta_ativo = assinatura_usuario.plano and assinatura_usuario.plano.is_ativo
-        
-        # 2. Verifica se a ASSINATURA está Ativa (não pendente, não cancelada)
         assinatura_esta_ativa = assinatura_usuario.status == 'ATIVA'
-        
-        # 3. Verifica se a ASSINATURA não expirou
         assinatura_nao_expirou = assinatura_usuario.data_expiracao and assinatura_usuario.data_expiracao > agora
 
         if plano_esta_ativo and assinatura_esta_ativa and assinatura_nao_expirou:
@@ -228,7 +196,7 @@ def anunciar_imovel(request):
         # --- [FIM DA CORREÇÃO] ---
             
     except Assinatura.DoesNotExist:
-        pass # Não tem assinatura, 'assinatura_usuario' = None
+        pass 
     # --- [FIM DA LÓGICA DE ASSINATURA] ---
 
     if request.method == 'POST':
@@ -237,7 +205,6 @@ def anunciar_imovel(request):
         print(f"request.FILES: {request.FILES}") 
 
         # --- [REGRA DE NEGÓCIO ATUALIZADA] ---
-        # 3. VERIFICA SE O USUÁRIO TEM QUALQUER PLANO (MESMO PENDENTE)
         if not assinatura_usuario:
             messages.error(request, "Você não possui um plano selecionado. Por favor, escolha um plano para poder anunciar.")
             return redirect('listar_planos') 

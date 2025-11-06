@@ -1,23 +1,44 @@
 # imoveis/views.py
 from django.shortcuts import render, get_object_or_404
-from .models import Imovel, Cidade, Imobiliaria, Bairro
+# 1. IMPORTAMOS OS MODELOS 'Assinatura' e 'Imovel' COMPLETOS
+from .models import Imovel, Cidade, Imobiliaria, Bairro, Assinatura, Plano 
 from django.core.paginator import Paginator
 from django.http import JsonResponse
-from django.utils import timezone # <-- 1. IMPORTAÇÃO ADICIONADA
+from django.utils import timezone # Importação já existe
 
 def lista_imoveis(request):
     
-    # --- [CORREÇÃO AQUI] ---
-    # 2. Pegamos a data/hora de agora
+    # --- [INÍCIO DA CORREÇÃO "VIGIA GLOBAL"] ---
     agora = timezone.now()
+
+    # 1. VIGIA DE ASSINATURAS: Encontra e expira Assinaturas vencidas
+    # (Isso é importante para o painel do usuário)
+    assinaturas_expiradas = Assinatura.objects.filter(
+        status='ATIVA',
+        data_expiracao__lt=agora # Menor que (lt) agora
+    )
+    if assinaturas_expiradas.exists():
+        print(f"VIGIA GLOBAL: Encontradas {assinaturas_expiradas.count()} assinaturas expiradas. Atualizando...")
+        assinaturas_expiradas.update(status=Assinatura.StatusAssinatura.EXPIRADA)
+
+    # 2. VIGIA DE IMÓVEIS: Encontra e expira Imóveis vencidos
+    # (Isso limpa a vitrine pública E o painel do usuário)
+    imoveis_expirados = Imovel.objects.filter(
+        status_publicacao='ATIVO',
+        data_expiracao__lt=agora # Menor que (lt) agora
+    )
+    if imoveis_expirados.exists():
+        print(f"VIGIA GLOBAL: Encontrados {imoveis_expirados.count()} imóveis expirados. Atualizando...")
+        imoveis_expirados.update(status_publicacao=Imovel.StatusPublicacao.EXPIRADO)
     
-    # 3. Adicionamos o filtro para data_expiracao ser MAIOR QUE (gt) agora
+    # --- [FIM DA CORREÇÃO "VIGIA GLOBAL"] ---
+
+
+    # Agora, a busca principal só pega os que SÃO ATIVOS e NÃO EXPIRADOS
     imoveis_list = Imovel.objects.filter(
         status_publicacao='ATIVO',
         data_expiracao__gt=agora 
     ).order_by('-destaque', '-data_cadastro')
-    # --- [FIM DA CORREÇÃO] ---
-
     
     cidades = Cidade.objects.all()
     imobiliarias = Imobiliaria.objects.all()
@@ -44,7 +65,6 @@ def lista_imoveis(request):
     if finalidade: 
         imoveis_list = imoveis_list.filter(finalidade=finalidade)
     
-    # Validação para IDs (que devem ser numéricos)
     if imobiliaria_id and imobiliaria_id.isdigit():
         imoveis_list = imoveis_list.filter(imobiliaria__id=imobiliaria_id)
         try: 
@@ -58,9 +78,6 @@ def lista_imoveis(request):
     if bairro_id and bairro_id.isdigit(): 
         imoveis_list = imoveis_list.filter(bairro__id=bairro_id)
 
-    # Validação para campos numéricos (__gte ou __lte)
-    # Adicionamos a verificação .isdigit() em todos
-    
     if quartos_min and quartos_min.isdigit(): 
         imoveis_list = imoveis_list.filter(quartos__gte=quartos_min)
         
@@ -70,7 +87,6 @@ def lista_imoveis(request):
     if banheiros_min and banheiros_min.isdigit(): 
         imoveis_list = imoveis_list.filter(banheiros__gte=banheiros_min)
         
-    # Esta é a linha que causou o erro, agora corrigida:
     if salas_min and salas_min.isdigit(): 
         imoveis_list = imoveis_list.filter(salas__gte=salas_min)
         
@@ -88,7 +104,6 @@ def lista_imoveis(request):
 
     # --- Fim dos Filtros ---
 
-    # Lógica de paginação (sem alterações)
     paginator = Paginator(imoveis_list, 50) 
     page_number = request.GET.get('page')
     imoveis_page = paginator.get_page(page_number)
@@ -98,45 +113,39 @@ def lista_imoveis(request):
         'cidades': cidades,
         'imobiliarias': imobiliarias,
         'imobiliaria_selecionada': imobiliaria_selecionada,
-        'valores_filtro': request.GET # 'valores_filtro' é usado no template
+        'valores_filtro': request.GET
     }
     return render(request, 'imoveis/lista_imoveis.html', contexto)
 
 def detalhe_imovel(request, id):
     
-    # --- [CORREÇÃO AQUI] ---
-    # 4. Pegamos a data/hora de agora
     agora = timezone.now()
     
-    # 5. Adicionamos o filtro para data_expiracao ser MAIOR QUE (gt) agora
+    # O filtro de expiração aqui já estava correto
     imovel = get_object_or_404(
         Imovel, 
         id=id, 
         status_publicacao='ATIVO',
         data_expiracao__gt=agora
     )
-    # --- [FIM DA CORREÇÃO] ---
 
     contexto = { 'imovel': imovel }
     return render(request, 'imoveis/detalhe_imovel.html', contexto)
 
-# --- VIEW "ASSISTENTE" COM A INDENTAÇÃO CORRETA ---
+# --- VIEW "ASSISTENTE" ---
 def get_bairros(request):
-    # As linhas abaixo precisam estar indentadas
     cidade_id = request.GET.get('cidade_id')
     bairros = Bairro.objects.filter(cidade_id=cidade_id).order_by('nome')
     return JsonResponse(list(bairros.values('id', 'nome')), safe=False)
 
-    # --- [FUNÇÃO ADICIONADA] ---
+# --- VIEW POLITICA DE USO ---
 def politica_de_uso(request):
-    # Como o 'base.html' está em 'imoveis/templates/', 
-    # o Django encontrará o 'politica_de_uso.html' no mesmo local.
-    return render(request, 'politica_de_uso.html')
+    return render(request, 'politica_de_uso.html') 
 
-    # --- [FUNÇÃO ADICIONADA] ---
+# --- VIEW POLITICA DE QUALIDADE ---
 def politica_de_qualidade(request):
     return render(request, 'politica_de_qualidade.html')
 
-    # --- [FUNÇÃO ADICIONADA] ---
+# --- VIEW DICAS DE SEGURANÇA ---
 def dicas_de_seguranca(request):
     return render(request, 'dicas_de_seguranca.html')
