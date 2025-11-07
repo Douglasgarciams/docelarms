@@ -43,7 +43,7 @@ class Migration(migrations.Migration):
         migrations.AlterField(
             model_name='imovel',
             name='area',
-            field=models.PositiveIntegerField(blank=True, default=0, help_text='Em metros quadrados (m²)', null=True, verbose_name='Área (m²)'),
+            field=models.PositiveIntegerField(blank=True, default=0, help_text='Em metros quadrados (m²)', null=True, verbose_name='Área Construída(m²)'),
         ),
         migrations.AlterField(
             model_name='imovel',

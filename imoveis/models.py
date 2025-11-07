@@ -159,7 +159,7 @@ class Imovel(models.Model):
     salas = models.PositiveIntegerField(default=0, verbose_name="Nº de Salas", null=True, blank=True)
     cozinhas = models.PositiveIntegerField(default=0, verbose_name="Nº de Cozinhas", null=True, blank=True)
     closets = models.PositiveIntegerField(default=0, verbose_name="Nº de Closets", null=True, blank=True)
-    area = models.PositiveIntegerField(help_text="Em metros quadrados (m²)", verbose_name="Área (m²)", null=True, blank=True, default=0)
+    area = models.PositiveIntegerField(help_text="Em metros quadrados (m²)", verbose_name="Área Construída(m²)", null=True, blank=True, default=0)
     foto_principal = models.ImageField(upload_to='fotos_imoveis/', null=True, blank=True, verbose_name="Foto Principal")
     data_cadastro = models.DateTimeField(auto_now_add=True)
 
