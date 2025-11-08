@@ -10,9 +10,11 @@
                 <div class="card-body p-4 p-md-5">
                     <h2 class="text-center fw-bold mb-4">Criar Sua Conta</h2>
 
+                    <!-- O formulário começa aqui -->
                     <form method="POST" action="{% url 'cadastro' %}" novalidate>
                         {% csrf_token %}
 
+                        <!-- Mostra erros gerais do formulário (ex: "selecione um tipo de conta") -->
                         {% if messages %}
                             {% for message in messages %}
                                 <div class="alert alert-danger" role="alert">
@@ -21,9 +23,11 @@
                             {% endfor %}
                         {% endif %}
                         
+                        <!-- 1. CAMPO "TIPO DE CONTA" (Radio Buttons) -->
                         <div class="mb-3">
                             <label class="form-label">{{ user_form.tipo_conta.label }}</label>
                             <div>
+                                <!-- Loop para criar os botões de rádio -->
                                 {% for radio in user_form.tipo_conta %}
                                 <div class="form-check form-check-inline">
                                     {{ radio.tag }}
@@ -31,6 +35,7 @@
                                 </div>
                                 {% endfor %}
                             </div>
+                            <!-- Mostra erros específicos deste campo -->
                             {% for error in user_form.tipo_conta.errors %}
                                 <div class="invalid-feedback d-block">{{ error }}</div>
                             {% endfor %}
@@ -39,6 +44,7 @@
                         <hr>
                         <h4 class="fw-bold mb-3">Seus Dados de Acesso</h4>
 
+                        <!-- 2. CAMPOS DO USUÁRIO -->
                         <div class="row">
                             <div class="col-md-6 mb-3">
                                 <label class="form-label" for="{{ user_form.first_name.id_for_label }}">{{ user_form.first_name.label }}</label>
@@ -90,14 +96,26 @@
                                 <input type="password" name="{{ user_form.password2.name }}" class="form-control" id="{{ user_form.password2.id_for_label }}">
                             </div>
                         </div>
+                        
+                        <!-- 3. CAMPOS DA IMOBILIÁRIA (Escondidos por padrão) -->
                         <div id="campos_imobiliaria" style="display: none;">
                             <hr class="my-4">
                             <h4 class="fw-bold mb-3">Dados da Imobiliária / Corretor</h4>
                             
-                            <div class="mb-3">
-                                <label class="form-label">{{ imobiliaria_form.nome.label }}</label>
-                                {% for error in imobiliaria_form.nome.errors %}<div class="invalid-feedback d-block">{{ error }}</div>{% endfor %}
-                                {{ imobiliaria_form.nome }}
+                            <!-- Renderiza os campos da imobiliária -->
+                            <div class="row">
+                                <div class="col-md-6 mb-3">
+                                    <label class="form-label">{{ imobiliaria_form.nome.label }}</label>
+                                    {% for error in imobiliaria_form.nome.errors %}<div class="invalid-feedback d-block">{{ error }}</div>{% endfor %}
+                                    {{ imobiliaria_form.nome }}
+                                </div>
+                                <!-- === [CAMPO CRECI ADICIONADO] === -->
+                                <div class="col-md-6 mb-3">
+                                    <label class="form-label">{{ imobiliaria_form.creci.label }}</label>
+                                    {% for error in imobiliaria_form.creci.errors %}<div class="invalid-feedback d-block">{{ error }}</div>{% endfor %}
+                                    {{ imobiliaria_form.creci }}
+                                </div>
+                                <!-- === [FIM DA MUDANÇA] === -->
                             </div>
                             <div class="mb-3">
                                 <label class="form-label">{{ imobiliaria_form.endereco.label }}</label>
@@ -135,6 +153,7 @@
                             </div>
                         </div>
 
+                        <!-- 4. BOTÃO SUBMIT -->
                         <button type="submit" class="btn btn-primary btn-lg w-100 mt-4">Cadastrar-se</button>
                     </form>
                     
@@ -149,6 +168,7 @@
 {% endblock %}
 
 {% block extra_js %}
+<!-- 5. JAVASCRIPT PARA ESCONDER/MOSTRAR OS CAMPOS -->
 <script>
     document.addEventListener('DOMContentLoaded', function() {
         // Pega os botões de rádio
