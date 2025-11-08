@@ -24,12 +24,14 @@ class ImovelForm(forms.ModelForm):
     class Meta:
         model = Imovel
         fields = [
+            # 'plano', # <--- [LINHA REMOVIDA] ---
             'finalidade', 'imobiliaria', 'cidade', 'bairro', 'titulo', 'descricao', 
             'endereco', 'preco', 'telefone_contato', 'quartos', 'suites', 'banheiros', 'salas', 
             'cozinhas', 'closets', 'area', 'foto_principal'
         ]
         
         widgets = {
+            # 'plano': forms.Select(attrs={'class': 'form-select'}), # <--- [LINHA REMOVIDA] ---
             'finalidade': forms.Select(attrs={'class': 'form-select'}),
             'imobiliaria': forms.Select(attrs={'class': 'form-select'}),
             'cidade': forms.Select(attrs={'class': 'form-select'}),
@@ -51,13 +53,14 @@ class ImovelForm(forms.ModelForm):
                 field.widget.attrs['class'] = 'form-control'
 
 
-# --- NOVO FORMULÁRIO PARA CADASTRO PÚBLICO DE IMOBILIÁRIA ---
+# --- NOVO FORMULÁRIO PARA CADASTRO PÚBLICO DE IMOBILIÁRIA (ATUALIZADO) ---
 class ImobiliariaForm(forms.ModelForm):
     class Meta:
         model = Imobiliaria
         # Lista de campos que você pediu:
         fields = [
             'nome',
+            'creci', # <-- CAMPO ADICIONADO
             'endereco',
             'cidade',
             'telefone',
@@ -77,6 +80,7 @@ class ImobiliariaForm(forms.ModelForm):
         
         # Adiciona placeholders
         self.fields['nome'].widget.attrs['placeholder'] = 'Nome Fantasia da Imobiliária'
+        self.fields['creci'].widget.attrs['placeholder'] = 'CRECI (ex: 12345-J ou 12345-F)' # <-- CAMPO ADICIONADO
         self.fields['telefone'].widget.attrs['placeholder'] = '(00) 0000-0000'
         self.fields['telefone_secundario'].widget.attrs['placeholder'] = '(00) 90000-0000 (WhatsApp)'
         self.fields['site'].widget.attrs['placeholder'] = 'https://www.suaimobiliaria.com'

@@ -90,11 +90,31 @@ class BairroAdmin(admin.ModelAdmin):
     list_filter = ('cidade',)
     search_fields = ('nome',)
 
-# --- Classe Admin para IMOBILIARIA (Sem mudanças) ---
+# --- Classe Admin para IMOBILIARIA (ATUALIZADA) ---
 @admin.register(Imobiliaria)
 class ImobiliariaAdmin(admin.ModelAdmin):
-    list_display = ('nome', 'cidade', 'telefone', 'telefone_secundario')
-    search_fields = ('nome',)
+    # Adicionado 'usuario' e 'creci' na lista
+    list_display = ('nome', 'creci', 'usuario', 'cidade', 'telefone')
+    
+    # Adicionado 'creci' e 'usuario__username' na busca
+    search_fields = ('nome', 'creci', 'usuario__username')
+    
+    list_filter = ('cidade',) # Adicionado filtro de cidade
+    
+    # Adicionado 'usuario' e 'creci' no formulário de edição
+    fields = (
+        'usuario', 
+        'nome', 
+        'creci', # <-- CAMPO ADICIONADO
+        'cidade', 
+        'endereco',
+        'telefone',
+        'telefone_secundario',
+        'site',
+        'rede_social'
+    )
+    # Adicionado autocomplete para facilitar a busca de usuário e cidade
+    autocomplete_fields = ['usuario', 'cidade']
 
 # --- 5. PlanoAdmin ATUALIZADO (com is_ativo e Ações) ---
 @admin.register(Plano)
@@ -134,6 +154,9 @@ class AssinaturaAdmin(admin.ModelAdmin):
     # Campos que o admin pode editar
     fields = ('usuario', 'plano', 'status', 'data_inicio', 'data_expiracao')
     
+    # Adiciona autocomplete para facilitar a busca de usuário e plano
+    autocomplete_fields = ['usuario', 'plano']
+    
     # Ação para facilitar sua vida
     actions = ['ativar_assinaturas']
 
@@ -154,6 +177,20 @@ class AssinaturaAdmin(admin.ModelAdmin):
 
 # --------------------------------------------------
 
-# Registra os outros modelos (Sem mudanças)
-admin.site.register(Cidade)
-admin.site.register(Foto)
+# --- [INÍCIO DA CORREÇÃO] ---
+# Registra 'Cidade' com 'search_fields' para corrigir o erro 'autocomplete_fields'
+@admin.register(Cidade)
+class CidadeAdmin(admin.ModelAdmin):
+    list_display = ('nome', 'estado')
+    search_fields = ('nome', 'estado') # <-- Linha obrigatória para o autocomplete funcionar
+
+# Registra 'Foto' (boa prática, mas não obrigatório para o bug)
+@admin.register(Foto)
+class FotoAdmin(admin.ModelAdmin):
+    list_display = ('imovel', 'imagem')
+    search_fields = ('imovel__titulo',)
+    autocomplete_fields = ['imovel']
+# --- [FIM DA CORREÇÃO] ---
+
+# admin.site.register(Cidade) # <-- Linha antiga removida
+# admin.site.register(Foto) # <-- Linha antiga removida

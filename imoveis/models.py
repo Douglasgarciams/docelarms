@@ -37,9 +37,9 @@ class Imobiliaria(models.Model):
 
     nome = models.CharField(max_length=150)
     
-    # --- [CAMPO REMOVIDO] ---
-    # creci = ... (Removido conforme sua solicitação)
-    # ---------------------------
+    # --- [CAMPO ADICIONADO DE VOLTA] ---
+    creci = models.CharField(max_length=20, null=True, blank=True, verbose_name="CRECI")
+    # ---------------------------------
 
     endereco = models.CharField(max_length=255, null=True, blank=True, verbose_name="Endereço")
     cidade = models.ForeignKey(Cidade, on_delete=models.SET_NULL, null=True, blank=True, verbose_name="Cidade")
