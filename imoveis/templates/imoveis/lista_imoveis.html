@@ -69,14 +69,16 @@
                                 </select>
                             </div>
                             <div class="col-md-3">
-                                <select name="cidade" id="hero_cidade_2" class="form-select form-select-lg"> <option value="">Cidade</option>
+                                <select name="cidade" id="hero_cidade_2" class="form-select form-select-lg">
+                                    <option value="">Cidade</option>
                                     {% for cidade in cidades %}
                                         <option value="{{ cidade.id }}" {% if valores_filtro.cidade|default:'' == cidade.id|stringformat:"s" %}selected{% endif %}>{{ cidade.nome }}</option>
                                     {% endfor %}
                                 </select>
                             </div>
                             <div class="col-md-3">
-                                <select name="bairro" id="hero_bairro_2" class="form-select form-select-lg" disabled> <option value="">Bairro</option>
+                                <select name="bairro" id="hero_bairro_2" class="form-select form-select-lg" disabled>
+                                    <option value="">Bairro</option>
                                     </select>
                             </div>
                             <div class="col-md-2">
@@ -104,14 +106,16 @@
                                 </select>
                             </div>
                             <div class="col-md-3">
-                                <select name="cidade" id="hero_cidade_3" class="form-select form-select-lg"> <option value="">Cidade</option>
+                                <select name="cidade" id="hero_cidade_3" class="form-select form-select-lg">
+                                    <option value="">Cidade</option>
                                     {% for cidade in cidades %}
                                         <option value="{{ cidade.id }}" {% if valores_filtro.cidade|default:'' == cidade.id|stringformat:"s" %}selected{% endif %}>{{ cidade.nome }}</option>
                                     {% endfor %}
                                 </select>
                             </div>
                             <div class="col-md-3">
-                                <select name="bairro" id="hero_bairro_3" class="form-select form-select-lg" disabled> <option value="">Bairro</option>
+                                <select name="bairro" id="hero_bairro_3" class="form-select form-select-lg" disabled>
+                                    <option value="">Bairro</option>
                                     </select>
                             </div>
                             <div class="col-md-2">
@@ -139,14 +143,16 @@
                                 </select>
                             </div>
                             <div class="col-md-3">
-                                <select name="cidade" id="hero_cidade_4" class="form-select form-select-lg"> <option value="">Cidade</option>
+                                <select name="cidade" id="hero_cidade_4" class="form-select form-select-lg">
+                                    <option value="">Cidade</option>
                                     {% for cidade in cidades %}
                                         <option value="{{ cidade.id }}" {% if valores_filtro.cidade|default:'' == cidade.id|stringformat:"s" %}selected{% endif %}>{{ cidade.nome }}</option>
                                     {% endfor %}
                                 </select>
                             </div>
                             <div class="col-md-3">
-                                <select name="bairro" id="hero_bairro_4" class="form-select form-select-lg" disabled> <option value="">Bairro</option>
+                                <select name="bairro" id="hero_bairro_4" class="form-select form-select-lg" disabled>
+                                    <option value="">Bairro</option>
                                     </select>
                             </div>
                             <div class="col-md-2">
@@ -174,14 +180,16 @@
                                 </select>
                             </div>
                             <div class="col-md-3">
-                                <select name="cidade" id="hero_cidade_5" class="form-select form-select-lg"> <option value="">Cidade</option>
+                                <select name="cidade" id="hero_cidade_5" class="form-select form-select-lg">
+                                    <option value="">Cidade</option>
                                     {% for cidade in cidades %}
                                         <option value="{{ cidade.id }}" {% if valores_filtro.cidade|default:'' == cidade.id|stringformat:"s" %}selected{% endif %}>{{ cidade.nome }}</option>
                                     {% endfor %}
                                 </select>
                             </div>
                             <div class="col-md-3">
-                                <select name="bairro" id="hero_bairro_5" class="form-select form-select-lg" disabled> <option value="">Bairro</option>
+                                <select name="bairro" id="hero_bairro_5" class="form-select form-select-lg" disabled>
+                                    <option value="">Bairro</option>
                                     </select>
                             </div>
                             <div class="col-md-2">
@@ -337,7 +345,9 @@
                             </div>
                             <div class="card-body">
                                 <p class="text-muted mb-1"><small>{{ imovel.cidade.nome }}</small></p>
-                                <h5 class="card-title mb-2" style="font-size: 0.9rem;">{{ imovel.titulo|truncatechars:35 }}</h5>
+                                
+                                <h5 class="card-title mb-2 anuncio-titulo" style="font-size: 0.9rem;">{{ imovel.titulo|truncatechars:35 }}</h5>
+                                
                                 <p class="card-text fs-5 fw-bold mb-2" style="color: var(--cor-primaria);">R$ {{ imovel.preco|floatformat:2|intcomma }}</p>
                                 
                                 <div class="card-features border-top pt-2 mt-2" style="gap: 1rem; font-size: 0.8rem;">
