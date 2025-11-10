@@ -334,11 +334,68 @@
                                 
                                 <p class="card-text fs-5 fw-bold mb-2" style="color: var(--cor-primaria);">R$ {{ imovel.preco|floatformat:2|intcomma }}</p>
                                 
-                                <div class="card-features border-top pt-2 mt-2" style="gap: 1rem; font-size: 0.8rem;">
-                                    <span title="Quartos"><i class="bi bi-door-open-fill"></i> {{ imovel.quartos }}</span>
-                                    <span title="Banheiros"><i class="bi bi-archive-fill"></i> {{ imovel.banheiros }}</span>
-                                    <span title="Área"><i class="bi bi-arrows-fullscreen"></i> {{ imovel.area }} m²</span>
-                                </div>
+                                <div class="card-features border-top pt-2 mt-2" 
+     style="font-size: 0.85rem; color: #495057;">
+    
+    <ul class="list-unstyled mb-0" style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.25rem 0.5rem;">
+        
+        {% if imovel.finalidade %}
+        <li title="Finalidade">
+            <i class="fas fa-handshake fa-fw me-1"></i> 
+            <small>Finalidade:</small> <span class="fw-bold">{{ imovel.get_finalidade_display }}</span>
+        </li>
+        {% endif %}
+
+        {% if imovel.area > 0 %}
+        <li title="Área">
+            <i class="fas fa-ruler-combined fa-fw me-1"></i> 
+            <small>Área:</small> <span class="fw-bold">{{ imovel.area|floatformat:0 }} m²</span>
+        </li>
+        {% endif %}
+
+        {% if imovel.quartos > 0 %}
+        <li title="Quartos">
+            <i class="fas fa-bed fa-fw me-1"></i> 
+            <small>Quartos:</small> <span class="fw-bold">{{ imovel.quartos }}</span>
+        </li>
+        {% endif %}
+
+        {% if imovel.suites > 0 %}
+        <li title="Suítes">
+            <i class="fas fa-bath fa-fw me-1"></i> 
+            <small>Suítes:</small> <span class="fw-bold">{{ imovel.suites }}</span>
+        </li>
+        {% endif %}
+
+        {% if imovel.banheiros > 0 %}
+        <li title="Banheiros">
+            <i class="fas fa-toilet fa-fw me-1"></i> 
+            <small>Banheiros:</small> <span class="fw-bold">{{ imovel.banheiros }}</span>
+        </li>
+        {% endif %}
+        
+        {% if imovel.salas > 0 %}
+        <li title="Salas">
+            <i class="fas fa-couch fa-fw me-1"></i> 
+            <small>Salas:</small> <span class="fw-bold">{{ imovel.salas }}</span>
+        </li>
+        {% endif %}
+
+        {% if imovel.cozinhas > 0 %}
+        <li title="Cozinhas">
+            <i class="fas fa-utensils fa-fw me-1"></i> 
+            <small>Cozinhas:</small> <span class="fw-bold">{{ imovel.cozinhas }}</span>
+        </li>
+        {% endif %}
+
+        {% if imovel.closets > 0 %}
+        <li title="Closets">
+            <i class="fas fa-door-closed fa-fw me-1"></i> 
+            <small>Closets:</small> <span class="fw-bold">{{ imovel.closets }}</span>
+        </li>
+        {% endif %}
+    </ul>
+</div>
                             </div>
                         </div>
                     </div>
