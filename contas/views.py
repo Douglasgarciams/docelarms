@@ -51,13 +51,16 @@ def add_watermark(image_file, watermark_text="USO EXCLUSIVO DE DOCELARMS", font_
         # Tenta carregar uma fonte negrito ou usa a padrão
         try:
             if font_path and os.path.exists(font_path):
-                font = ImageFont.truetype(font_path, int(height / 20)) # Tamanho da fonte proporcional
+                # <--- MUDANÇA AQUI: De 20 para 30 para diminuir a fonte
+                font = ImageFont.truetype(font_path, int(height / 30)) 
             else:
                 try:
-                    font = ImageFont.truetype("arialbd.ttf", int(height / 20)) # Windows
+                    # <--- MUDANÇA AQUI: De 20 para 30 para diminuir a fonte
+                    font = ImageFont.truetype("arialbd.ttf", int(height / 30)) # Windows
                 except IOError:
                     try:
-                        font = ImageFont.truetype("DejaVuSans-Bold.ttf", int(height / 20)) # Linux/macOS
+                        # <--- MUDANÇA AQUI: De 20 para 30 para diminuir a fonte
+                        font = ImageFont.truetype("DejaVuSans-Bold.ttf", int(height / 30)) # Linux/macOS
                     except IOError:
                         font = ImageFont.load_default()
                         print("Aviso: Nenhuma fonte negrito específica encontrada, usando fonte padrão.")
@@ -73,7 +76,8 @@ def add_watermark(image_file, watermark_text="USO EXCLUSIVO DE DOCELARMS", font_
         x = (width - text_width) / 2
         y = (height - text_height) / 2
 
-        draw.text((x, y), watermark_text, font=font, fill=(0, 0, 0, 255)) # Preto com opacidade total
+        # <--- MUDANÇA AQUI: De 255 (opaco) para 128 (50% transparente)
+        draw.text((x, y), watermark_text, font=font, fill=(0, 0, 0, 128)) 
 
         buffer = BytesIO()
         if img.mode == "RGBA":
