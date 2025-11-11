@@ -98,6 +98,12 @@
                             <div class="col-md-3">
                                 <label class="form-label">{{ form.preco.label }}</label>
                                 {{ form.preco }}
+    
+                                {% if form.preco.errors %}
+                                    <div class="invalid-feedback d-block">
+                                        {% for error in form.preco.errors %}{{ error }}{% endfor %}
+                                    </div>
+                                {% endif %}
                             </div>
                             <div class="col-md-3">
                                 <label class="form-label">{{ form.telefone_contato.label }}</label>
