@@ -45,7 +45,8 @@ INSTALLED_APPS = [
     'storages', # Needed for production
     'imoveis',
     'contas',
-]
+    'django.contrib.sites',
+    'django.contrib.sitemaps',]
 
 # --- MIDDLEWARE ---
 MIDDLEWARE = [
@@ -271,3 +272,6 @@ LOGGING = {
 }
 # --- FIM DA SEÇÃO LOGGING ---
 MERCADOPAGO_ACCESS_TOKEN = 'TEST-2115056379086026-011214-f6d39061f853500ce2e17cbd6bdb43b0-83157671'
+# settings.py (no final do arquivo)
+
+SITE_ID = 1
