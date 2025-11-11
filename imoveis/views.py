@@ -176,3 +176,7 @@ def politica_de_qualidade(request):
 # --- VIEW DICAS DE SEGURANÇA ---
 def dicas_de_seguranca(request):
     return render(request, 'dicas_de_seguranca.html')
+    
+    # --- ✅ ADICIONE ESTA NOVA VIEW ABAIXO ---
+def fale_conosco(request):
+    return render(request, 'fale_conosco.html')
