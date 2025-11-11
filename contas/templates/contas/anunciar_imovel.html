@@ -16,6 +16,43 @@
 
                     <form method="POST" enctype="multipart/form-data" id="form-anuncio">
                         {% csrf_token %}
+                        <form method="POST" enctype="multipart/form-data" id="form-anuncio">
+    {% csrf_token %}
+
+    {% if form.non_field_errors %}
+        <div class="alert alert-danger">
+            <strong>Ocorreu um erro:</strong>
+            {% for error in form.non_field_errors %}{{ error }}{% endfor %}
+        </div>
+    {% endif %}
+
+    ```
+
+**2. Erros de Preço e Telefone (Nos campos):**
+Encontre os campos `preco` e `telefone_contato` e adicione o bloco `{% if form.CAMPO.errors %}` para cada um:
+
+```html
+<div class="col-md-3">
+    <label class="form-label">{{ form.preco.label }}</label>
+    {{ form.preco }}
+    
+    {% if form.preco.errors %}
+        <div class="invalid-feedback d-block" style="color: red; font-size: 0.9em;">
+            {% for error in form.preco.errors %}{{ error }}{% endfor %}
+        </div>
+    {% endif %}
+</div>
+
+<div class="col-md-3">
+    <label class="form-label">{{ form.telefone_contato.label }}</label>
+    {{ form.telefone_contato }}
+    
+    {% if form.telefone_contato.errors %}
+        <div class="invalid-feedback d-block" style="color: red; font-size: 0.9em;">
+            {% for error in form.telefone_contato.errors %}{{ error }}{% endfor %}
+        </div>
+    {% endif %}
+</div>
 
                         {% if form.non_field_errors %}
                             <div class="alert alert-danger">
