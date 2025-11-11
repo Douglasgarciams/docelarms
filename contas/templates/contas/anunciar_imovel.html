@@ -279,7 +279,17 @@
             });
         }
         // --- Fim do Script 'Processando' ---
-
+// === [4. SCRIPT DE MÁSCARA (NOVO)] ===
+    // Como o jQuery Mask foi carregado no base.html, podemos usá-lo aqui
+    $(document).ready(function(){
+        
+        // Ativa a máscara de Dinheiro (R$) para o campo de preço
+        // O ID '#id_preco' é gerado automaticamente pelo Django
+        $('#id_preco').mask('#.##0,00', {reverse: true});
+        
+        // Bônus: Ativa a máscara de Telefone
+        // O ID '#id_telefone_contato' é gerado pelo Django
+        $('#id_telefone_contato').mask('(00) 00000-0000');
     });
 </script>
 {% endblock %}
