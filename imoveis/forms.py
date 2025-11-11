@@ -19,9 +19,8 @@ class ImovelForm(forms.ModelForm):
         label='Fotos da Galeria (selecione várias)'
     )
 
-    # --- ✅ MUDANÇA 1: DEFINIR OS CAMPOS 'PRECO' E 'TELEFONE' AQUI FORA ---
-    # Isso força o Django a tratá-los como campos de TEXTO (CharField)
-    # permitindo que a máscara e a limpeza funcionem.
+    # --- MUDANÇA 1: CAMPOS 'PRECO' E 'TELEFONE' SÃO DEFINIDOS AQUI ---
+    # Isso força o Django a tratá-los como TEXTO (CharField)
     preco = forms.CharField(
         label='Preço (R$)',
         widget=forms.TextInput(attrs={
@@ -32,7 +31,7 @@ class ImovelForm(forms.ModelForm):
     
     telefone_contato = forms.CharField(
         label='Telefone para Contato Direto',
-        required=False, # <-- Torne opcional se desejar
+        required=False, 
         widget=forms.TextInput(attrs={
             'class': 'form-control', 
             'placeholder': '(00) 00000-0000'
@@ -42,27 +41,22 @@ class ImovelForm(forms.ModelForm):
     class Meta:
         model = Imovel
         
-        # --- ✅ MUDANÇA 2: REMOVER 'preco' E 'telefone_contato' DE 'fields' ---
+        # --- MUDANÇA 2: 'preco' E 'telefone_contato' SÃO REMOVIDOS DAQUI ---
         fields = [
             'finalidade', 'imobiliaria', 'cidade', 'bairro', 'titulo', 'descricao', 
             'endereco', 'quartos', 'suites', 'banheiros', 'salas', 
             'cozinhas', 'closets', 'area', 'foto_principal'
         ]
         
-        # --- ✅ MUDANÇA 3: REMOVER 'preco' E 'telefone_contato' DOS 'widgets' ---
+        # --- MUDANÇA 3: 'preco' E 'telefone_contato' SÃO REMOVIDOS DAQUI ---
         widgets = {
-            # Campos de Seleção
             'finalidade': forms.Select(attrs={'class': 'form-select'}),
             'imobiliaria': forms.Select(attrs={'class': 'form-select'}),
             'cidade': forms.Select(attrs={'class': 'form-select'}),
             'bairro': forms.Select(attrs={'class': 'form-select'}),
-            
-            # Campos de Texto
             'titulo': forms.TextInput(attrs={'class': 'form-control'}),
             'endereco': forms.TextInput(attrs={'class': 'form-control'}),
             'descricao': forms.Textarea(attrs={'class': 'form-control', 'rows': 4}),
-            
-            # Campos Numéricos (continuam NumberInput)
             'area': forms.NumberInput(attrs={'class': 'form-control'}),
             'quartos': forms.NumberInput(attrs={'class': 'form-control', 'value': 0}),
             'suites': forms.NumberInput(attrs={'class': 'form-control', 'value': 0}),
@@ -70,8 +64,6 @@ class ImovelForm(forms.ModelForm):
             'salas': forms.NumberInput(attrs={'class': 'form-control', 'value': 0}),
             'cozinhas': forms.NumberInput(attrs={'class': 'form-control', 'value': 0}),
             'closets': forms.NumberInput(attrs={'class': 'form-control', 'value': 0}),
-
-            # Campos de Arquivo
             'foto_principal': forms.FileInput(attrs={'class': 'form-control'}),
         }
 
@@ -79,8 +71,7 @@ class ImovelForm(forms.ModelForm):
         super().__init__(*args, **kwargs)
         self.fields['imobiliaria'].required = False
         
-    # --- ✅ MUDANÇA 4: ESTA FUNÇÃO 'clean_preco' AGORA VAI FUNCIONAR ---
-    # Ela receberá o texto "250.000,00" (string) e não mais um Decimal.
+    # --- MUDANÇA 4: ESTA FUNÇÃO AGORA RECEBE UM TEXTO (String) ---
     def clean_preco(self):
         preco_str = self.cleaned_data.get('preco')
         
@@ -96,7 +87,6 @@ class ImovelForm(forms.ModelForm):
         except InvalidOperation:
             raise forms.ValidationError("Valor de preço inválido.")
 
-    # --- BÔNUS: Adicione também a limpeza do telefone ---
     def clean_telefone_contato(self):
         telefone_str = self.cleaned_data.get('telefone_contato')
         if not telefone_str:
@@ -105,6 +95,8 @@ class ImovelForm(forms.ModelForm):
         # Remove ( ) - e espaços
         telefone_limpo = telefone_str.translate(str.maketrans('', '', '()- '))
         return telefone_limpo
+
+# O resto do arquivo (ImobiliariaForm) continua igual...
 
 
 # --- FORMULÁRIO DE IMOBILIÁRIA (Sem alteração) ---
