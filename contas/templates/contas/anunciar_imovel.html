@@ -16,46 +16,10 @@
 
                     <form method="POST" enctype="multipart/form-data" id="form-anuncio">
                         {% csrf_token %}
-                        <form method="POST" enctype="multipart/form-data" id="form-anuncio">
-    {% csrf_token %}
-
-    {% if form.non_field_errors %}
-        <div class="alert alert-danger">
-            <strong>Ocorreu um erro:</strong>
-            {% for error in form.non_field_errors %}{{ error }}{% endfor %}
-        </div>
-    {% endif %}
-
-    ```
-
-**2. Erros de Preço e Telefone (Nos campos):**
-Encontre os campos `preco` e `telefone_contato` e adicione o bloco `{% if form.CAMPO.errors %}` para cada um:
-
-```html
-<div class="col-md-3">
-    <label class="form-label">{{ form.preco.label }}</label>
-    {{ form.preco }}
-    
-    {% if form.preco.errors %}
-        <div class="invalid-feedback d-block" style="color: red; font-size: 0.9em;">
-            {% for error in form.preco.errors %}{{ error }}{% endfor %}
-        </div>
-    {% endif %}
-</div>
-
-<div class="col-md-3">
-    <label class="form-label">{{ form.telefone_contato.label }}</label>
-    {{ form.telefone_contato }}
-    
-    {% if form.telefone_contato.errors %}
-        <div class="invalid-feedback d-block" style="color: red; font-size: 0.9em;">
-            {% for error in form.telefone_contato.errors %}{{ error }}{% endfor %}
-        </div>
-    {% endif %}
-</div>
 
                         {% if form.non_field_errors %}
                             <div class="alert alert-danger">
+                                <strong>Ocorreu um erro:</strong>
                                 {% for error in form.non_field_errors %}{{ error }}{% endfor %}
                             </div>
                         {% endif %}
@@ -135,17 +99,25 @@ Encontre os campos `preco` e `telefone_contato` e adicione o bloco `{% if form.C
                             <div class="col-md-3">
                                 <label class="form-label">{{ form.preco.label }}</label>
                                 {{ form.preco }}
-    
+                                
                                 {% if form.preco.errors %}
-                                    <div class="invalid-feedback d-block">
+                                    <div class="invalid-feedback d-block" style="color: red; font-size: 0.9em;">
                                         {% for error in form.preco.errors %}{{ error }}{% endfor %}
                                     </div>
                                 {% endif %}
                             </div>
+
                             <div class="col-md-3">
                                 <label class="form-label">{{ form.telefone_contato.label }}</label>
                                 {{ form.telefone_contato }}
+
+                                {% if form.telefone_contato.errors %}
+                                    <div class="invalid-feedback d-block" style="color: red; font-size: 0.9em;">
+                                        {% for error in form.telefone_contato.errors %}{{ error }}{% endfor %}
+                                    </div>
+                                {% endif %}
                             </div>
+
                             <div class="col-md-3">
                                 <label class="form-label">{{ form.area.label }}</label>
                                 <div class="input-group">
@@ -218,43 +190,48 @@ Encontre os campos `preco` e `telefone_contato` e adicione o bloco `{% if form.C
 </div>
 {% endblock %}
 
+
 {% block extra_js %}
 <script>
+    // Bloco 1: Scripts que rodam DEPOIS que o HTML carregar
     document.addEventListener('DOMContentLoaded', function() {
         
-        // --- 1. Script de Cidades/Bairros (Sem mudanças) ---
+        // --- 1. Script de Cidades/Bairros ---
         const cidadeSelect = document.querySelector('#id_cidade');
         const bairroSelect = document.querySelector('#id_bairro');
 
-        cidadeSelect.addEventListener('change', function() {
-            const cidadeId = this.value; 
-            bairroSelect.innerHTML = '<option value="">Carregando...</option>';
+        // Adicionado 'if(cidadeSelect)' para evitar erros em páginas que não têm esse campo
+        if(cidadeSelect) { 
+            cidadeSelect.addEventListener('change', function() {
+                const cidadeId = this.value; 
+                bairroSelect.innerHTML = '<option value="">Carregando...</option>';
 
-            if (!cidadeId) {
-                bairroSelect.innerHTML = '<option value="">Selecione uma cidade primeiro</option>';
-                bairroSelect.disabled = true; 
-                return;
-            }
+                if (!cidadeId) {
+                    bairroSelect.innerHTML = '<option value="">Selecione uma cidade primeiro</option>';
+                    bairroSelect.disabled = true; 
+                    return;
+                }
 
-            bairroSelect.disabled = false; 
-            fetch(`/api/bairros/?cidade_id=${cidadeId}`)
-                .then(response => response.json()) 
-                .then(data => {
-                    bairroSelect.innerHTML = '<option value="">Selecione o bairro</option>';
-                    data.forEach(function(bairro) {
-                        const option = new Option(bairro.nome, bairro.id);
-                        bairroSelect.add(option);
+                bairroSelect.disabled = false; 
+                fetch(`/api/bairros/?cidade_id=${cidadeId}`)
+                    .then(response => response.json()) 
+                    .then(data => {
+                        bairroSelect.innerHTML = '<option value="">Selecione o bairro</option>';
+                        data.forEach(function(bairro) {
+                            const option = new Option(bairro.nome, bairro.id);
+                            bairroSelect.add(option);
+                        });
                     });
-                });
-        });
-        
-        if (!cidadeSelect.value) {
-            bairroSelect.disabled = true;
+            });
+            
+            if (!cidadeSelect.value) {
+                bairroSelect.disabled = true;
+            }
         }
-        // --- Fim do Script de Cidades/Bairros ---
+        // --- Fim Cidades/Bairros ---
 
 
-        // === [2. SCRIPT DE VALIDAÇÃO DE FOTOS (Selector atualizado)] ===
+        // === [2. SCRIPT DE VALIDAÇÃO DE FOTOS] ===
         
         const limiteFotos = {{ assinatura.plano.limite_fotos|default_if_none:0 }};
         
@@ -265,9 +242,7 @@ Encontre os campos `preco` e `telefone_contato` e adicione o bloco `{% if form.C
         
         const fotosInput = document.getElementById('id_fotos_galeria');
         const feedbackDiv = document.getElementById('fotos-galeria-feedback');
-        
-        // **IMPORTANTE**: Usando o ID do botão que definimos no HTML
-        const submitButton = document.getElementById('submit-button');
+        const submitButton = document.getElementById('submit-button'); // Já usa o ID
 
         if (fotosInput && limiteFotos > 0) {
             fotosInput.addEventListener('change', function(event) {
@@ -297,18 +272,15 @@ Encontre os campos `preco` e `telefone_contato` e adicione o bloco `{% if form.C
                 }
             });
         }
-        // --- Fim do Script de Validação ---
+        // --- Fim Validação de Fotos ---
 
 
-        // === [3. SCRIPT 'PROCESSANDO' (A PARTE NOVA)] ===
+        // === [3. SCRIPT 'PROCESSANDO'] ===
         
-        // Seleciona o formulário pelo ID
         const formAnuncio = document.getElementById('form-anuncio');
         
-        // Verifica se o formulário e o botão existem na página
         if (formAnuncio && submitButton) {
             
-            // Adiciona um "ouvinte" para o evento 'submit' (envio)
             formAnuncio.addEventListener('submit', function() {
                 
                 // Desabilita o botão para evitar cliques duplicados
@@ -321,17 +293,19 @@ Encontre os campos `preco` e `telefone_contato` e adicione o bloco `{% if form.C
                 `;
             });
         }
-        // --- Fim do Script 'Processando' ---
-// === [4. SCRIPT DE MÁSCARA (NOVO)] ===
-    // Como o jQuery Mask foi carregado no base.html, podemos usá-lo aqui
+        // --- Fim 'Processando' ---
+
+    }); // Fim do 'DOMContentLoaded'
+
+
+    // === [4. SCRIPT DE MÁSCARA (jQuery)] ===
+    // Isso roda DEPOIS que o jQuery (o '$') for carregado
     $(document).ready(function(){
         
         // Ativa a máscara de Dinheiro (R$) para o campo de preço
-        // O ID '#id_preco' é gerado automaticamente pelo Django
         $('#id_preco').mask('#.##0,00', {reverse: true});
         
-        // Bônus: Ativa a máscara de Telefone
-        // O ID '#id_telefone_contato' é gerado pelo Django
+        // Ativa a máscara de Telefone
         $('#id_telefone_contato').mask('(00) 00000-0000');
     });
 </script>
