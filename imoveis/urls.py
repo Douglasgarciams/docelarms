@@ -16,4 +16,7 @@ urlpatterns = [
     
     # --- ✅ [LINHA ADICIONADA] ---
     path('fale-conosco/', views.fale_conosco, name='fale_conosco'),
+    # --- ✅ [NOVAS URLs DE PARCEIROS ADICIONADAS] ---
+    path('parceiros/', views.listar_parceiros, name='listar_parceiros'),
+    path('parceiros/cadastrar/', views.cadastrar_parceiro, name='cadastrar_parceiro'),
 ]

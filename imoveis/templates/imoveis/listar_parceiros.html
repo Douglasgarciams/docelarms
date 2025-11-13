@@ -1,0 +1,103 @@
+{% extends 'base.html' %}
+
+{% block title %}Parceiros - DOCELARMS{% endblock %}
+
+{% block content %}
+<div class="container my-5">
+    <div class="row">
+        <div class="col-lg-3">
+            <h4 class="fw-bold mb-3">Categorias</h4>
+            <div class="list-group">
+                <!-- Botão "Mostrar Todos" -->
+                <a href="{% url 'listar_parceiros' %}" 
+                   class="list-group-item list-group-item-action {% if not nicho_ativo %}active{% endif %}">
+                    Mostrar Todos
+                </a>
+                
+                <!-- Botões de Nicho (ex: "Telhas") -->
+                {% for nicho in nichos %}
+                <a href="?nicho={{ nicho.slug }}" 
+                   class="list-group-item list-group-item-action {% if nicho_ativo.slug == nicho.slug %}active{% endif %}">
+                    {{ nicho.nome }}
+                </a>
+                {% endfor %}
+            </div>
+            
+            <!-- ✅ [BLOCO "QUER SER PARCEIRO" FOI REMOVIDO DAQUI] -->
+            
+        </div>
+        
+        <div class="col-lg-9">
+
+            <!-- ✅ [BLOCO "QUER SER PARCEIRO" ATUALIZADO] -->
+            <div class="card bg-light border-0 shadow-sm mb-4">
+                <div class="card-body text-center p-4">
+                    <h4 class="fw-bold">Quer ser um parceiro gratuitamente?</h4>
+                    <p class="mb-3">Cadastre sua empresa ou serviço em nosso guia.</p>
+                    
+                    <!-- ✅ [NOVA LINHA ADICIONADA] -->
+                    <p class="mb-3 text-muted">
+                        <small>Se não encontrou sua especialidade, faça contato com <a href="mailto:suportedocelarms@gmail.com">suportedocelarms@gmail.com</a> e peça sua parceria.</small>
+                    </p>
+                    <!-- ✅ [FIM DA NOVA LINHA] -->
+
+                    <a href="{% url 'cadastrar_parceiro' %}" class="btn btn-primary btn-lg rounded-pill">Cadastre-se Aqui</a>
+                </div>
+            </div>
+            <!-- ✅ [FIM DO BLOCO] -->
+
+
+            <h2 class="fw-bold mb-4">
+                {% if nicho_ativo %}
+                    Parceiros: {{ nicho_ativo.nome }}
+                {% else %}
+                    Nossos Parceiros
+                {% endif %}
+            </h2>
+
+            {% if messages %}
+                {% for message in messages %}
+                    <div class="alert alert-success">{{ message }}</div>
+                {% endfor %}
+            {% endif %}
+
+            <div class="row row-cols-1 row-cols-md-2 g-4">
+                {% for parceiro in parceiros %}
+                <div class="col">
+                    <div class="card h-100 shadow-sm">
+                        <div class="row g-0">
+                            {% if parceiro.logo %}
+                            <div class="col-md-4 d-flex align-items-center justify-content-center p-3">
+                                <img src="{{ parceiro.logo.url }}" class="img-fluid rounded" alt="{{ parceiro.nome }}" style="max-height: 120px; object-fit: contain;">
+                            </div>
+                            {% endif %}
+                            
+                            <div class="{% if parceiro.logo %}col-md-8{% else %}col-12{% endif %}">
+                                <div class="card-body">
+                                    <h5 class="card-title fw-bold">{{ parceiro.nome }}</h5>
+                                    <p class="card-text"><small>{{ parceiro.descricao|default_if_none:""|truncatewords:20 }}</small></p>
+                                    
+                                    {% if parceiro.telefone %}
+                                    <p class="mb-1"><strong><i class="bi bi-telephone-fill"></i></strong> {{ parceiro.telefone }}</p>
+                                    {% endif %}
+                                    
+                                    {% if parceiro.whatsapp %}
+                                    <p class="mb-0"><strong><i class="bi bi-whatsapp"></i></strong> {{ parceiro.whatsapp }}</p>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                {% empty %}
+                <div class="col-12">
+                    <div class="alert alert-warning">
+                        Nenhum parceiro encontrado nesta categoria ainda.
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

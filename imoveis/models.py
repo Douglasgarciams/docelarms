@@ -188,3 +188,61 @@ class Foto(models.Model):
     imovel = models.ForeignKey(Imovel, related_name='fotos', on_delete=models.CASCADE)
     imagem = models.ImageField(upload_to='fotos_galeria/')
     def __str__(self): return f"Foto de {self.imovel.titulo or self.imovel.id}"
+
+    # ✅ 1. O MODELO PARA OS NICHOS (AS CATEGORIAS)
+class NichoParceiro(models.Model):
+    nome = models.CharField(max_length=100, unique=True, verbose_name="Nome do Nicho")
+    slug = models.SlugField(max_length=100, unique=True, blank=True)
+    
+    class Meta:
+        verbose_name = "Nicho de Parceiro"
+        verbose_name_plural = "Nichos de Parceiros"
+        ordering = ['nome'] # ✅ <-- LINHA ADICIONADA AQUI
+
+    def __str__(self):
+        return self.nome
+    
+    def save(self, *args, **kwargs):
+        if not self.slug:
+            self.slug = slugify(self.nome)
+        super().save(*args, **kwargs)
+
+
+# ✅ 2. O MODELO PARA OS PROFISSIONAIS/EMPRESAS
+class Parceiro(models.Model):
+    class Status(models.TextChoices):
+        PENDENTE = 'PENDENTE', 'Pendente'
+        APROVADO = 'APROVADO', 'Aprovado'
+        REJEITADO = 'REJEITADO', 'Rejeitado'
+
+    # Relacionamento: O "Nicho" que o parceiro escolheu
+    nicho = models.ForeignKey(
+        NichoParceiro, 
+        on_delete=models.SET_NULL, 
+        null=True, 
+        verbose_name="Nicho de Atuação"
+    )
+    
+    # Informações do Parceiro
+    nome = models.CharField(max_length=200, verbose_name="Nome da Empresa/Profissional")
+    descricao = models.TextField(verbose_name="Breve Descrição", blank=True, null=True)
+    telefone = models.CharField(max_length=20, verbose_name="Telefone Principal", blank=True, null=True)
+    whatsapp = models.CharField(max_length=20, verbose_name="WhatsApp", blank=True, null=True)
+    email = models.EmailField(verbose_name="E-mail de Contato", blank=True, null=True)
+    #logo = models.ImageField(upload_to='logos_parceiros/', blank=True, null=True, verbose_name="Logo")
+    
+    # Controle de Aprovação
+    status = models.CharField(
+        max_length=10,
+        choices=Status.choices,
+        default=Status.PENDENTE,
+        verbose_name="Status"
+    )
+    data_cadastro = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = "Parceiro"
+        verbose_name_plural = "Parceiros"
+
+    def __str__(self):
+        return self.nome

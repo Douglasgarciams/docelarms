@@ -1,6 +1,6 @@
-# imoveis/forms.py
 from django import forms
-from .models import Imovel, Imobiliaria, Cidade, Bairro 
+# ✅ 1. IMPORTAÇÕES CORRIGIDAS (todos os modelos necessários)
+from .models import Imovel, Imobiliaria, Cidade, Bairro, NichoParceiro, Parceiro 
 # Não precisamos mais de 'Decimal' ou 'InvalidOperation'
 
 # Classe MultipleFileInput (sem alteração)
@@ -12,6 +12,7 @@ class MultipleFileInput(forms.FileInput):
         super(forms.FileInput, self).__init__(default_attrs)
 
 
+# (Este formulário está CORRETO - sem a máscara)
 class ImovelForm(forms.ModelForm):
     fotos_galeria = forms.FileField(
         widget=MultipleFileInput(attrs={'class': 'form-control'}), 
@@ -22,14 +23,12 @@ class ImovelForm(forms.ModelForm):
     class Meta:
         model = Imovel
         
-        # --- ✅ MUDANÇA 1: 'preco' e 'telefone_contato' VOLTARAM ---
         fields = [
             'finalidade', 'imobiliaria', 'cidade', 'bairro', 'titulo', 'descricao', 
             'endereco', 'preco', 'telefone_contato', 'quartos', 'suites', 'banheiros', 'salas', 
             'cozinhas', 'closets', 'area', 'foto_principal'
         ]
         
-        # --- ✅ MUDANÇA 2: 'preco' e 'telefone_contato' VOLTARAM A SER SIMPLES ---
         widgets = {
             'finalidade': forms.Select(attrs={'class': 'form-select'}),
             'imobiliaria': forms.Select(attrs={'class': 'form-select'}),
@@ -53,8 +52,6 @@ class ImovelForm(forms.ModelForm):
             'foto_principal': forms.FileInput(attrs={'class': 'form-control'}),
         }
 
-    # --- ✅ MUDANÇA 3: O 'def __init__' E O 'def clean_...' FORAM REMOVIDOS ---
-    # (Apenas o __init__ simples para 'imobiliaria' permanece)
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.fields['imobiliaria'].required = False
@@ -81,3 +78,28 @@ class ImobiliariaForm(forms.ModelForm):
         self.fields['telefone_secundario'].widget.attrs['placeholder'] = '(00) 90000-0000 (WhatsApp)'
         self.fields['site'].widget.attrs['placeholder'] = 'https://www.suaimobiliaria.com'
         self.fields['rede_social'].widget.attrs['placeholder'] = 'https://www.instagram.com/seuimovel'
+
+# --- ✅ CORREÇÃO NO ParceiroForm ---
+class ParceiroForm(forms.ModelForm):
+    
+    nicho = forms.ModelChoiceField(
+        queryset=NichoParceiro.objects.all(),
+        widget=forms.Select(attrs={'class': 'form-select'}),
+        label="Qual seu nicho de atuação?"
+    )
+
+    class Meta:
+        model = Parceiro
+        # ✅ 'logo' FOI REMOVIDO DESTA LISTA 'fields'
+        fields = [
+            'nicho', 'nome', 'descricao', 
+            'telefone', 'whatsapp', 'email' 
+        ]
+        widgets = {
+            'nome': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Ex: Casa das Telhas ou João da Silva Pintor'}),
+            'descricao': forms.Textarea(attrs={'class': 'form-control', 'rows': 4, 'placeholder': 'Descreva brevemente seus serviços...'}),
+            'telefone': forms.TextInput(attrs={'class': 'form-control', 'placeholder': '(00) 0000-0000'}),
+            'whatsapp': forms.TextInput(attrs={'class': 'form-control', 'placeholder': '(00) 90000-0000'}),
+            'email': forms.EmailInput(attrs={'class': 'form-control'}),
+            #'logo': forms.FileInput(attrs={'class': 'form-control'}),
+        }

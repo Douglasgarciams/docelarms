@@ -1,7 +1,9 @@
 # imoveis/views.py
-from django.shortcuts import render, get_object_or_404
+from django.shortcuts import render, get_object_or_404, redirect
+from django.contrib import messages
 # 1. IMPORTAMOS OS MODELOS 'Assinatura' e 'Imovel' COMPLETOS
-from .models import Imovel, Cidade, Imobiliaria, Bairro, Assinatura, Plano 
+from .models import Imovel, Cidade, Imobiliaria, Bairro, Assinatura, Plano, NichoParceiro, Parceiro 
+from .forms import ImovelForm, ImobiliariaForm, ParceiroForm
 # 2. IMPORTAMOS O 'F' PARA FAZER A CONTAGEM SEGURA
 from django.db.models import F
 from django.core.paginator import Paginator
@@ -180,3 +182,42 @@ def dicas_de_seguranca(request):
     # --- ✅ ADICIONE ESTA NOVA VIEW ABAIXO ---
 def fale_conosco(request):
     return render(request, 'fale_conosco.html')
+
+    # ✅ 2. ADICIONE A VIEW DA PÁGINA PÚBLICA DE PARCEIROS
+def listar_parceiros(request):
+    nichos = NichoParceiro.objects.all()
+    
+    # Pega apenas parceiros APROVADOS
+    parceiros_list = Parceiro.objects.filter(status=Parceiro.Status.APROVADO).order_by('nome')
+    
+    # Filtra pelo nicho clicado (via URL ?nicho=slug)
+    nicho_slug = request.GET.get('nicho')
+    nicho_ativo = None
+    if nicho_slug:
+        nicho_ativo = get_object_or_404(NichoParceiro, slug=nicho_slug)
+        parceiros_list = parceiros_list.filter(nicho=nicho_ativo)
+
+    contexto = {
+        'nichos': nichos,
+        'parceiros': parceiros_list,
+        'nicho_ativo': nicho_ativo,
+    }
+    return render(request, 'imoveis/listar_parceiros.html', contexto)
+
+
+# ✅ 3. ADICIONE A VIEW DE CADASTRO DO PARCEIRO
+def cadastrar_parceiro(request):
+    if request.method == 'POST':
+        form = ParceiroForm(request.POST, request.FILES)
+        if form.is_valid():
+            # O status default já é 'PENDENTE'
+            form.save()
+            messages.success(request, 'Cadastro enviado com sucesso! Aguarde nossa aprovação.')
+            return redirect('listar_parceiros')
+    else:
+        form = ParceiroForm()
+    
+    contexto = {
+        'form': form
+    }
+    return render(request, 'imoveis/cadastrar_parceiro.html', contexto)

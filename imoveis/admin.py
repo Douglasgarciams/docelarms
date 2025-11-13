@@ -1,7 +1,7 @@
 # imoveis/admin.py
 from django.contrib import admin
 # 1. Importamos os novos modelos, incluindo 'Assinatura'
-from .models import Imovel, Foto, Cidade, Imobiliaria, Bairro, Plano, Assinatura
+from .models import Imovel, Foto, Cidade, Imobiliaria, Bairro, Plano, Assinatura, NichoParceiro, Parceiro
 from django.utils import timezone
 from datetime import timedelta
 
@@ -194,3 +194,19 @@ class FotoAdmin(admin.ModelAdmin):
 
 # admin.site.register(Cidade) # <-- Linha antiga removida
 # admin.site.register(Foto) # <-- Linha antiga removida
+
+# ✅ 2. Crie uma ação de "Aprovar"
+@admin.action(description='Aprovar parceiros selecionados')
+def aprovar_parceiros(modeladmin, request, queryset):
+    queryset.update(status=Parceiro.Status.APROVADO)
+
+# ✅ 3. Configure a listagem dos Parceiros
+class ParceiroAdmin(admin.ModelAdmin):
+    list_display = ('nome', 'nicho', 'telefone', 'status', 'data_cadastro')
+    list_filter = ('status', 'nicho')
+    search_fields = ('nome', 'email', 'telefone')
+    actions = [aprovar_parceiros] # Adiciona o botão de ação
+
+# ✅ 4. Registre os novos modelos
+admin.site.register(NichoParceiro)
+admin.site.register(Parceiro, ParceiroAdmin)
