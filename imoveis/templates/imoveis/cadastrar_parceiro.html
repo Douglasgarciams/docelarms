@@ -25,10 +25,18 @@
                         {% endif %}
 
                         <div class="row g-3">
-                            <div class="col-12">
+                            <!-- ✅ [CORREÇÃO 1: Layout ajustado para 2 colunas] -->
+                            <div class="col-md-6">
                                 <label class="form-label">{{ form.nicho.label }}</label>
                                 {{ form.nicho }}
                             </div>
+
+                            <!-- ✅ [CORREÇÃO 2: Rótulo e layout corrigidos] -->
+                            <div class="col-md-6">
+                                <label class="form-label">{{ form.cidade.label }}</label>
+                                {{ form.cidade }}
+                            </div>
+
                             <div class="col-12">
                                 <label class="form-label">{{ form.nome.label }}</label>
                                 {{ form.nome }}
@@ -45,14 +53,15 @@
                                 <label class="form-label">{{ form.whatsapp.label }}</label>
                                 {{ form.whatsapp }}
                             </div>
-                            <div class="col-md-6">
+                            
+                            <!-- ✅ [CORREÇÃO 3: Campo 'email' agora em linha inteira] -->
+                            <div class="col-12">
                                 <label class="form-label">{{ form.email.label }}</label>
                                 {{ form.email }}
                             </div>
-                            <div class="col-md-6">
-                                <label class="form-label">{{ form.logo.label }}</label>
-                                {{ form.logo }}
-                            </div>
+                            
+                            <!-- ✅ [CORREÇÃO 4: Campo 'logo' REMOVIDO] -->
+                            
                         </div>
 
                         <button type="submit" class="btn btn-primary btn-lg w-100 mt-4">Enviar Cadastro</button>

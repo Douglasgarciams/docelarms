@@ -23,6 +23,17 @@
                 {% endfor %}
             </div>
             
+            <!-- ✅ [FILTRO DE CIDADE ADICIONADO] -->
+            <h4 class="fw-bold mb-3 mt-4">Cidades</h4>
+            <div class="list-group">
+                {% for cidade in cidades %}
+                <a href="?cidade={{ cidade.id }}" 
+                   class="list-group-item list-group-item-action {% if cidade_ativa.id == cidade.id %}active{% endif %}">
+                    {{ cidade.nome }}
+                </a>
+                {% endfor %}
+            </div>
+            <!-- ✅ [FIM DA MUDANÇA] -->
             <!-- ✅ [BLOCO "QUER SER PARCEIRO" FOI REMOVIDO DAQUI] -->
             
         </div>

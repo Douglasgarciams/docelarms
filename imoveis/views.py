@@ -186,6 +186,7 @@ def fale_conosco(request):
     # ✅ 2. ADICIONE A VIEW DA PÁGINA PÚBLICA DE PARCEIROS
 def listar_parceiros(request):
     nichos = NichoParceiro.objects.all()
+    cidades = Cidade.objects.all().order_by('nome')
     
     # Pega apenas parceiros APROVADOS
     parceiros_list = Parceiro.objects.filter(status=Parceiro.Status.APROVADO).order_by('nome')

@@ -79,27 +79,37 @@ class ImobiliariaForm(forms.ModelForm):
         self.fields['site'].widget.attrs['placeholder'] = 'https://www.suaimobiliaria.com'
         self.fields['rede_social'].widget.attrs['placeholder'] = 'https://www.instagram.com/seuimovel'
 
-# --- ✅ CORREÇÃO NO ParceiroForm ---
+# --- CORREÇÃO NO ParceiroForm ---
 class ParceiroForm(forms.ModelForm):
     
     nicho = forms.ModelChoiceField(
-        queryset=NichoParceiro.objects.all(),
+        # ✅ Adicionado order_by para garantir ordem alfabética
+        queryset=NichoParceiro.objects.all().order_by('nome'), 
         widget=forms.Select(attrs={'class': 'form-select'}),
-        label="Qual seu nicho de atuação?"
+        label="Qual seu mercado de atuação?"
+    )
+    cidade = forms.ModelChoiceField(
+        queryset=Cidade.objects.all().order_by('nome'),
+        widget=forms.Select(attrs={'class': 'form-select'}),
+        label="Qual sua cidade de atuação?",
+        required=True 
     )
 
     class Meta:
         model = Parceiro
-        # ✅ 'logo' FOI REMOVIDO DESTA LISTA 'fields'
+        
+        # ✅ --- CORREÇÃO AQUI ---
+        # 'cidade' foi adicionada à lista
         fields = [
-            'nicho', 'nome', 'descricao', 
+            'nicho', 'cidade', 'nome', 'descricao', 
             'telefone', 'whatsapp', 'email' 
         ]
+        # --- FIM DA CORREÇÃO ---
+        
         widgets = {
             'nome': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Ex: Casa das Telhas ou João da Silva Pintor'}),
             'descricao': forms.Textarea(attrs={'class': 'form-control', 'rows': 4, 'placeholder': 'Descreva brevemente seus serviços...'}),
             'telefone': forms.TextInput(attrs={'class': 'form-control', 'placeholder': '(00) 0000-0000'}),
             'whatsapp': forms.TextInput(attrs={'class': 'form-control', 'placeholder': '(00) 90000-0000'}),
             'email': forms.EmailInput(attrs={'class': 'form-control'}),
-            #'logo': forms.FileInput(attrs={'class': 'form-control'}),
         }

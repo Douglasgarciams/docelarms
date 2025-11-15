@@ -222,6 +222,16 @@ class Parceiro(models.Model):
         null=True, 
         verbose_name="Nicho de Atuação"
     )
+    # --- ✅ [LINHA ADICIONADA] ---
+    # Usa o mesmo modelo 'Cidade' que os imóveis usam
+    cidade = models.ForeignKey(
+        Cidade, 
+        on_delete=models.SET_NULL, 
+        null=True, 
+        blank=True, 
+        verbose_name="Cidade de Atuação"
+    )
+    # -----------------------------
     
     # Informações do Parceiro
     nome = models.CharField(max_length=200, verbose_name="Nome da Empresa/Profissional")
