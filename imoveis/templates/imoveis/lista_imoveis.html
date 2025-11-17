@@ -4,7 +4,40 @@
 
 {% block content %}
 
+<!-- ✅ 1. [INÍCIO] HTML DO MODAL (POP-UP) -->
+<!-- Ele fica escondido aqui até ser ativado pelo JavaScript -->
+<div class="modal fade" id="popupModal" tabindex="-1" aria-labelledby="popupModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered modal-lg">
+    <!-- Usamos 'background: transparent' para que só a imagem apareça -->
+    <div class="modal-content" style="background: transparent; border: 0;">
+      <div class="modal-body p-0 position-relative">
+        
+        <!-- Botão de Fechar (sobre a imagem) -->
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close" 
+                style="position: absolute; top: 10px; right: 10px; background-color: white; border-radius: 50%; padding: 8px; z-index: 10;">
+        </button>
+        
+        <!-- 
+          ✅ COLOQUE O LINK DO SEU ANÚNCIO AQUI 
+          Troque '#' pelo link de destino e a URL da imagem.
+        -->
+        <a href="#"> 
+          <img src="{% static 'img/minha-imagem-de-anuncio.png' %}" 
+               onerror="this.src='https://placehold.co/800x400/00bfa5/white?text=Meu+Anúncio+Aqui';"
+               class="img-fluid rounded" 
+               alt="Anúncio de Lançamento">
+        </a>
+
+      </div>
+    </div>
+  </div>
+</div>
+<!-- ✅ 1. [FIM] HTML DO MODAL -->
+
+
+<!-- O resto da sua página (Carrossel) continua igual -->
 <header id="heroCarousel" class="carousel slide" data-bs-ride="carousel">
+    <!-- ... (todo o código do seu carrossel fica aqui, sem alteração) ... -->
     <div class="carousel-indicators">
         <button type="button" data-bs-target="#heroCarousel" data-bs-slide-to="0" class="active" aria-current="true" aria-label="Slide 1"></button>
         <button type="button" data-bs-target="#heroCarousel" data-bs-slide-to="1" aria-label="Slide 2"></button>
@@ -152,7 +185,7 @@
         <div class="carousel-item" style="background-image: url('{% static 'img/carousel/capa5.jpg' %}')">
             <div class="carousel-caption">
                 <div class="text-center">
-                    <h1 class="display-3 fw-bold mb-4"></h1>
+                    <h1 class="display-3 fw-bold mb-4">Seu Futuro Começa Aqui</h1>
                     <div class="p-4 rounded-3" style="background-color: rgba(255,255,255,0.1); backdrop-filter: blur(10px);">
                         <form method="GET" action="" class="row g-2 align-items-center justify-content-center">
                             <div class="col-md-4">
@@ -193,6 +226,8 @@
         <span class="visually-hidden">Próximo</span>
     </button>
 </header>
+
+<!-- ... (O resto da sua página, filtros, cards de imóveis, etc. ... -->
 {% if imobiliaria_selecionada %}
 <div class="container mb-4 mt-5">
     <div class="card shadow-sm">
@@ -335,9 +370,9 @@
                                 <p class="card-text fs-5 fw-bold mb-2" style="color: var(--cor-primaria);">R$ {{ imovel.preco|floatformat:2|intcomma }}</p>
                                 
                                 <div class="card-features border-top pt-2 mt-2" 
-     style="font-size: 0.85rem; color: #495057;">
+   style="font-size: 0.85rem; color: #495057;">
     
-    <ul class="list-unstyled mb-0" style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.25rem 0.5rem;">
+   <ul class="list-unstyled mb-0" style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.25rem 0.5rem;">
         
         {% if imovel.finalidade %}
         <li title="Finalidade">
