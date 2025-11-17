@@ -5,21 +5,18 @@
 {% block content %}
 
 <!-- ✅ 1. [INÍCIO] HTML DO MODAL (POP-UP) -->
-<!-- Ele fica escondido aqui até ser ativado pelo JavaScript -->
 <div class="modal fade" id="popupModal" tabindex="-1" aria-labelledby="popupModalLabel" aria-hidden="true">
-  <div class="modal-dialog modal-dialog-centered modal-lg">
-    <!-- Usamos 'background: transparent' para que só a imagem apareça -->
+  <div class="modal-dialog modal-dialog-centered">
     <div class="modal-content" style="background: transparent; border: 0;">
       <div class="modal-body p-0 position-relative">
         
-        <!-- Botão de Fechar (sobre a imagem) -->
         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close" 
                 style="position: absolute; top: 10px; right: 10px; background-color: white; border-radius: 50%; padding: 8px; z-index: 10;">
         </button>
         
         <!-- 
-          ✅ COLOQUE O LINK DO SEU ANÚNCIO AQUI 
-          Troque '#' pelo link de destino e a URL da imagem.
+          ✅ Lembre-se de trocar '#' pelo link de destino 
+          e 'minha-imagem-de-anuncio.png' pelo nome da sua imagem em 'static/img/'
         -->
         <a href="#"> 
           <img src="{% static 'img/minha-imagem-de-anuncio.png' %}" 
@@ -548,6 +545,18 @@
 
         // Configura para a barra lateral (Sidebar)
         configurarDropdownBairros('sidebar_cidade', 'sidebar_bairro');
+
+        // --- ✅ 2. [NOVO SCRIPT DO POP-UP] ---
+        // Verifica se o pop-up já foi visto *nesta sessão*
+        if (!sessionStorage.getItem('popupVisto')) {
+            // Se não foi visto, cria uma instância do modal Bootstrap
+            var popupModal = new bootstrap.Modal(document.getElementById('popupModal'), {});
+            // Mostra o modal
+            popupModal.show();
+            // Marca como visto para esta sessão
+            sessionStorage.setItem('popupVisto', 'true');
+        }
+        // --- [FIM DO SCRIPT DO POP-UP] ---
     });
 </script>
 {% endblock %}
