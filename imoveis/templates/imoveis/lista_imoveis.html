@@ -6,7 +6,8 @@
 
 <!-- ✅ 1. [INÍCIO] HTML DO MODAL (POP-UP) -->
 <div class="modal fade" id="popupModal" tabindex="-1" aria-labelledby="popupModalLabel" aria-hidden="true">
-  <div class="modal-dialog modal-dialog-centered">
+  <!-- ✅ [CORREÇÃO DE TAMANHO] A classe 'modal-lg' foi REMOVIDA daqui -->
+  <div class="modal-dialog modal-dialog-centered"> 
     <div class="modal-content" style="background: transparent; border: 0;">
       <div class="modal-body p-0 position-relative">
         
@@ -14,13 +15,9 @@
                 style="position: absolute; top: 10px; right: 10px; background-color: white; border-radius: 50%; padding: 8px; z-index: 10;">
         </button>
         
-        <!-- 
-          ✅ Lembre-se de trocar '#' pelo link de destino 
-          e 'minha-imagem-de-anuncio.png' pelo nome da sua imagem em 'static/img/'
-        -->
         <a href="#"> 
           <img src="{% static 'img/minha-imagem-de-anuncio.png' %}" 
-               onerror="this.src='https://placehold.co/800x400/00bfa5/white?text=Meu+Anúncio+Aqui';"
+               onerror="this.src='https://placehold.co/500x500/00bfa5/white?text=Anuncie+Aqui!';"
                class="img-fluid rounded" 
                alt="Anúncio de Lançamento">
         </a>
@@ -34,7 +31,7 @@
 
 <!-- O resto da sua página (Carrossel) continua igual -->
 <header id="heroCarousel" class="carousel slide" data-bs-ride="carousel">
-    <!-- ... (todo o código do seu carrossel fica aqui, sem alteração) ... -->
+    <!-- ... (todo o código do seu carrossel) ... -->
     <div class="carousel-indicators">
         <button type="button" data-bs-target="#heroCarousel" data-bs-slide-to="0" class="active" aria-current="true" aria-label="Slide 1"></button>
         <button type="button" data-bs-target="#heroCarousel" data-bs-slide-to="1" aria-label="Slide 2"></button>
@@ -182,7 +179,7 @@
         <div class="carousel-item" style="background-image: url('{% static 'img/carousel/capa5.jpg' %}')">
             <div class="carousel-caption">
                 <div class="text-center">
-                    <h1 class="display-3 fw-bold mb-4">Seu Futuro Começa Aqui</h1>
+                    <h1 class="display-3 fw-bold mb-4"></h1>
                     <div class="p-4 rounded-3" style="background-color: rgba(255,255,255,0.1); backdrop-filter: blur(10px);">
                         <form method="GET" action="" class="row g-2 align-items-center justify-content-center">
                             <div class="col-md-4">
@@ -479,17 +476,15 @@
 <script>
     document.addEventListener('DOMContentLoaded', function() {
         
-        // Passa o valor do filtro de bairro do Django para o JavaScript
+        // --- 1. SCRIPT DE FILTROS DE CIDADE/BAIRRO (JÁ EXISTIA) ---
         const bairroFiltradoId = "{{ valores_filtro.bairro|default_if_none:'' }}";
 
-        // Função genérica para configurar os dropdowns de cidade/bairro
         function configurarDropdownBairros(idCidadeSelect, idBairroSelect) {
             const cidadeSelect = document.getElementById(idCidadeSelect);
             const bairroSelect = document.getElementById(idBairroSelect);
             
             if (!cidadeSelect || !bairroSelect) return;
 
-            // Função para carregar os bairros
             function carregarBairros(cidadeId, bairroSelecionadoId = null) {
                 if (!cidadeId) {
                     bairroSelect.innerHTML = '<option value="">Bairro</option>';
@@ -498,7 +493,6 @@
                 }
 
                 bairroSelect.disabled = false;
-                // Mostra "Carregando..." apenas se não estivermos pré-selecionando um valor
                 if (!bairroSelecionadoId) {
                      bairroSelect.innerHTML = '<option value="">Carregando...</option>';
                 }
@@ -509,7 +503,6 @@
                         bairroSelect.innerHTML = '<option value="">Bairro</option>';
                         data.forEach(function(bairro) {
                             const option = new Option(bairro.nome, bairro.id);
-                            // Verifica se o ID do bairro atual é o mesmo que o bairro filtrado
                             if (bairro.id == bairroSelecionadoId) {
                                 option.selected = true;
                             }
@@ -518,13 +511,10 @@
                     });
             }
 
-            // Evento de mudança na cidade
             cidadeSelect.addEventListener('change', function() {
-                // Ao mudar a cidade manualmente, não passamos um bairro pré-selecionado
                 carregarBairros(this.value, null);
             });
 
-            // Carga Inicial: Carrega os bairros para a cidade já selecionada (se houver)
             const cidadeInicial = cidadeSelect.value;
             if (cidadeInicial) {
                  carregarBairros(cidadeInicial, bairroFiltradoId);
@@ -533,18 +523,14 @@
             }
         }
 
-        // --- [INÍCIO] ATUALIZAÇÃO DO CARROSSEL ---
-        // Configura para a barra de busca principal (Hero)
         configurarDropdownBairros('hero_cidade', 'hero_bairro');
-        // Configura para os outros 4 slides
         configurarDropdownBairros('hero_cidade_2', 'hero_bairro_2');
         configurarDropdownBairros('hero_cidade_3', 'hero_bairro_3');
         configurarDropdownBairros('hero_cidade_4', 'hero_bairro_4');
         configurarDropdownBairros('hero_cidade_5', 'hero_bairro_5');
-        // --- [FIM] ATUALIZAÇÃO DO CARROSSEL ---
-
-        // Configura para a barra lateral (Sidebar)
         configurarDropdownBairros('sidebar_cidade', 'sidebar_bairro');
+        // --- FIM DO SCRIPT DE FILTROS ---
+
 
         // --- ✅ 2. [NOVO SCRIPT DO POP-UP] ---
         // Verifica se o pop-up já foi visto *nesta sessão*
@@ -557,6 +543,7 @@
             sessionStorage.setItem('popupVisto', 'true');
         }
         // --- [FIM DO SCRIPT DO POP-UP] ---
+
     });
 </script>
 {% endblock %}
